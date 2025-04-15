@@ -9,7 +9,160 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      donations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          donor_id: string
+          expiry_date: string
+          food_type: string
+          id: string
+          pickup_address: string
+          pickup_instructions: string | null
+          pickup_time: string | null
+          quantity: string
+          reserved_by: string | null
+          status: string
+          storage_requirements: string | null
+          title: string
+          updated_at: string | null
+          volunteer_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          donor_id: string
+          expiry_date: string
+          food_type: string
+          id?: string
+          pickup_address: string
+          pickup_instructions?: string | null
+          pickup_time?: string | null
+          quantity: string
+          reserved_by?: string | null
+          status: string
+          storage_requirements?: string | null
+          title: string
+          updated_at?: string | null
+          volunteer_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          donor_id?: string
+          expiry_date?: string
+          food_type?: string
+          id?: string
+          pickup_address?: string
+          pickup_instructions?: string | null
+          pickup_time?: string | null
+          quantity?: string
+          reserved_by?: string | null
+          status?: string
+          storage_requirements?: string | null
+          title?: string
+          updated_at?: string | null
+          volunteer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_donor_id_fkey"
+            columns: ["donor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_reserved_by_fkey"
+            columns: ["reserved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_volunteer_id_fkey"
+            columns: ["volunteer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          id: string
+          name: string
+          phone?: string | null
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      volunteer_tasks: {
+        Row: {
+          created_at: string | null
+          donation_id: string
+          id: string
+          pickup_time: string
+          status: string
+          updated_at: string | null
+          volunteer_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          donation_id: string
+          id?: string
+          pickup_time: string
+          status: string
+          updated_at?: string | null
+          volunteer_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          donation_id?: string
+          id?: string
+          pickup_time?: string
+          status?: string
+          updated_at?: string | null
+          volunteer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_tasks_donation_id_fkey"
+            columns: ["donation_id"]
+            isOneToOne: false
+            referencedRelation: "donations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volunteer_tasks_volunteer_id_fkey"
+            columns: ["volunteer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
