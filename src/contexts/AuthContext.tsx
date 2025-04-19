@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { User, UserRole } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profile }) => {
+          .then(({ data: profile, error }) => {
             if (profile) {
               setCurrentUser({
                 id: session.user.id,
@@ -84,6 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 address: profile.address,
                 phone: profile.phone,
               });
+            } else if (error) {
+              console.error("Error fetching profile:", error);
             }
           });
       }
@@ -132,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setCurrentUser(null);
+      navigate("/login");
       toast({
         title: "Logged out",
         description: "You have been successfully logged out",
@@ -147,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name: string, role: UserRole) => {
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -162,8 +165,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       toast({
         title: "Registration successful",
-        description: "Please check your email to verify your account",
+        description: "Your account has been created. You can now log in.",
       });
+      
+      navigate("/login");
     } catch (error) {
       toast({
         title: "Registration failed",

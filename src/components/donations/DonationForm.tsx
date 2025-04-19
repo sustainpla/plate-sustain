@@ -27,6 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { Donation } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters" }),
@@ -74,29 +75,47 @@ export default function DonationForm({ onDonationCreated }: DonationFormProps) {
 
     setIsSubmitting(true);
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Save donation to Supabase
+      const { data, error } = await supabase
+        .from("donations")
+        .insert({
+          donor_id: currentUser.id,
+          title: values.title,
+          description: values.description,
+          food_type: values.foodType,
+          quantity: values.quantity,
+          expiry_date: new Date(values.expiryDate).toISOString(),
+          storage_requirements: values.storageRequirements,
+          pickup_address: values.pickupAddress,
+          pickup_instructions: values.pickupInstructions,
+          status: "listed"
+        })
+        .select()
+        .single();
       
-      const newDonation: Donation = {
-        id: `d${Math.floor(Math.random() * 1000)}`,
-        donorId: currentUser.id,
-        donorName: currentUser.name,
-        title: values.title,
-        description: values.description,
-        foodType: values.foodType,
-        quantity: values.quantity,
-        expiryDate: values.expiryDate,
-        storageRequirements: values.storageRequirements,
-        pickupAddress: values.pickupAddress,
-        pickupInstructions: values.pickupInstructions,
-        status: "listed",
-        createdAt: new Date().toISOString(),
-      };
-
+      if (error) throw error;
+      
       toast({
         title: "Donation created",
         description: "Your food donation has been listed successfully",
       });
+
+      // Convert database format to application format
+      const newDonation: Donation = {
+        id: data.id,
+        donorId: data.donor_id,
+        donorName: currentUser.name,
+        title: data.title,
+        description: data.description || "",
+        foodType: data.food_type,
+        quantity: data.quantity,
+        expiryDate: data.expiry_date,
+        storageRequirements: data.storage_requirements || "Room temperature",
+        pickupAddress: data.pickup_address,
+        pickupInstructions: data.pickup_instructions || "",
+        status: data.status as Donation["status"],
+        createdAt: data.created_at || new Date().toISOString(),
+      };
 
       if (onDonationCreated) {
         onDonationCreated(newDonation);
@@ -109,6 +128,7 @@ export default function DonationForm({ onDonationCreated }: DonationFormProps) {
         description: "There was an error creating your donation. Please try again.",
         variant: "destructive",
       });
+      console.error("Donation creation error:", error);
     } finally {
       setIsSubmitting(false);
     }
