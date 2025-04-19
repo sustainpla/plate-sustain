@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 // Donor Pages
 import DonorDashboard from "./pages/donor/DonorDashboard";
@@ -19,9 +21,12 @@ import MyDonations from "./pages/donor/MyDonations";
 // NGO Pages
 import NGODashboard from "./pages/ngo/NGODashboard";
 import AvailableDonations from "./pages/ngo/AvailableDonations";
+import DonationDetails from "./pages/ngo/DonationDetails";
 
 // Volunteer Pages
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
+import AvailableTasks from "./pages/volunteer/AvailableTasks";
+import TaskDetails from "./pages/volunteer/TaskDetails";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +41,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
           
           {/* Donor Routes */}
           <Route path="/donor/dashboard" element={<DonorDashboard />} />
@@ -45,9 +51,12 @@ const App = () => (
           {/* NGO Routes */}
           <Route path="/ngo/dashboard" element={<NGODashboard />} />
           <Route path="/ngo/available-donations" element={<AvailableDonations />} />
+          <Route path="/ngo/donation/:id" element={<DonationDetails />} />
           
           {/* Volunteer Routes */}
           <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
+          <Route path="/volunteer/available-tasks" element={<AvailableTasks />} />
+          <Route path="/volunteer/task/:id" element={<TaskDetails />} />
           
           {/* Catch-all Route */}
           <Route path="*" element={<NotFound />} />

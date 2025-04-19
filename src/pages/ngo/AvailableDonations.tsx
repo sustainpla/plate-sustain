@@ -22,7 +22,6 @@ export default function AvailableDonations() {
   const { data: donations, isLoading } = useQuery({
     queryKey: ["available-donations"],
     queryFn: async () => {
-      // Update the query to use a more specific column reference for profiles
       const { data, error } = await supabase
         .from("donations")
         .select("*, profiles!donations_donor_id_fkey(name)")
@@ -47,10 +46,8 @@ export default function AvailableDonations() {
         status: item.status as Donation["status"],
         createdAt: item.created_at || new Date().toISOString(),
         reservedBy: item.reserved_by || undefined,
-        reservedByName: undefined, // We don't have this information yet
         pickupTime: item.pickup_time || undefined,
         volunteerId: item.volunteer_id || undefined,
-        volunteerName: undefined, // We don't have this information yet
       }));
     },
     enabled: !!currentUser?.id,
@@ -79,7 +76,7 @@ export default function AvailableDonations() {
                     donation={donation}
                     viewType="ngo"
                     onAction={() => navigate(`/ngo/donation/${donation.id}`)}
-                    actionLabel="Reserve"
+                    actionLabel="View Details"
                   />
                 ))}
               </div>
