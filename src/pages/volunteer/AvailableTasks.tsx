@@ -46,10 +46,10 @@ export default function AvailableTasks() {
         pickupAddress: item.pickup_address,
         deliveryAddress: item.profiles?.address || "Contact NGO for address",
         pickupTime: item.pickup_time || new Date().toISOString(),
-        status: "available",
+        status: "available" as const, // Use const assertion to make TypeScript happy
         volunteerId: undefined,
         volunteerName: undefined
-      }));
+      })) as VolunteerTask[];
     },
     enabled: !!currentUser?.id,
   });
