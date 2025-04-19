@@ -1,9 +1,9 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Utensils, Heart, Calendar, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import Layout from "@/components/Layout";
 
 export default function Home() {
   const { isAuthenticated, currentUser } = useAuth();
@@ -24,12 +24,19 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <Layout>
       {/* Hero section */}
       <section className="relative bg-gradient-to-br from-sustainPlate-beige to-white py-16 md:py-24">
         <div className="container px-4 md:px-6">
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
             <div className="space-y-4">
+              <div className="flex justify-center lg:justify-start mb-8">
+                <img
+                  src="/lovable-uploads/ed233620-3184-47b8-86ea-d13908d35950.png"
+                  alt="SustainPlate Logo"
+                  className="h-32 w-32"
+                />
+              </div>
               <h1 className="text-3xl md:text-5xl font-bold tracking-tighter animate-fade-in">
                 Connecting surplus food with those who need it most
               </h1>
@@ -51,15 +58,6 @@ export default function Home() {
                   <Link to="/about">Learn More</Link>
                 </Button>
               </div>
-            </div>
-            <div className="lg:flex justify-center hidden animate-scale-in" style={{ animationDelay: "0.3s" }}>
-              <img
-                src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?q=80&w=500&auto=format&fit=crop"
-                alt="Food donation"
-                className="rounded-lg shadow-lg aspect-[4/3] object-cover"
-                width={500}
-                height={375}
-              />
             </div>
           </div>
         </div>
@@ -164,6 +162,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </div>
+    </Layout>
   );
 }

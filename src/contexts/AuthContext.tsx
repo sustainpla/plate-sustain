@@ -1,9 +1,9 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { User, UserRole } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -19,6 +19,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const handleRoleBasedRedirect = (role: UserRole) => {
+    switch (role) {
+      case "donor":
+        navigate("/donor/dashboard");
+        break;
+      case "ngo":
+        navigate("/ngo/dashboard");
+        break;
+      case "volunteer":
+        navigate("/volunteer/dashboard");
+        break;
+      default:
+        navigate("/");
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener
@@ -85,6 +102,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (profile) {
+        handleRoleBasedRedirect(profile.role as UserRole);
+      }
 
       toast({
         title: "Login successful",

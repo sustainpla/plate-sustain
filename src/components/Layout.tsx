@@ -168,9 +168,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-sustainPlate-green flex items-center justify-center">
-                <Utensils size={18} className="text-white" />
-              </div>
+              <img
+                src="/lovable-uploads/ed233620-3184-47b8-86ea-d13908d35950.png"
+                alt="SustainPlate Logo"
+                className="w-8 h-8 rounded-full"
+              />
               <span className="font-semibold text-xl hidden sm:inline-block">SustainPlate</span>
             </Link>
           </div>
