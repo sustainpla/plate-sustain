@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,9 +14,11 @@ import NotFound from "./pages/NotFound";
 // Donor Pages
 import DonorDashboard from "./pages/donor/DonorDashboard";
 import CreateDonation from "./pages/donor/CreateDonation";
+import MyDonations from "./pages/donor/MyDonations";
 
 // NGO Pages
 import NGODashboard from "./pages/ngo/NGODashboard";
+import AvailableDonations from "./pages/ngo/AvailableDonations";
 
 // Volunteer Pages
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
@@ -39,9 +40,11 @@ const App = () => (
           {/* Donor Routes */}
           <Route path="/donor/dashboard" element={<DonorDashboard />} />
           <Route path="/donor/create-donation" element={<CreateDonation />} />
+          <Route path="/donor/donations" element={<MyDonations />} />
           
           {/* NGO Routes */}
           <Route path="/ngo/dashboard" element={<NGODashboard />} />
+          <Route path="/ngo/available-donations" element={<AvailableDonations />} />
           
           {/* Volunteer Routes */}
           <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
