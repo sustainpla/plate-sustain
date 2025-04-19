@@ -24,7 +24,7 @@ export default function MyDonations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("donations")
-        .select("*, profiles(name)")
+        .select("*, profiles!donations_donor_id_fkey(name)")
         .eq("donor_id", currentUser?.id)
         .order("created_at", { ascending: false });
 

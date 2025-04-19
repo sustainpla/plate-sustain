@@ -22,9 +22,10 @@ export default function AvailableDonations() {
   const { data: donations, isLoading } = useQuery({
     queryKey: ["available-donations"],
     queryFn: async () => {
+      // Update the query to use a more specific column reference for profiles
       const { data, error } = await supabase
         .from("donations")
-        .select("*, profiles(name)")
+        .select("*, profiles!donations_donor_id_fkey(name)")
         .eq("status", "listed")
         .order("created_at", { ascending: false });
 
