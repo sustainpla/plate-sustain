@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import DonationCard from "@/components/donations/DonationCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Donation } from "@/lib/types";
 
 export default function MyDonations() {
   const { currentUser } = useAuth();
@@ -23,12 +24,33 @@ export default function MyDonations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("donations")
-        .select("*")
+        .select("*, profiles(name)")
         .eq("donor_id", currentUser?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Map the database response to match our Donation type
+      return data.map(item => ({
+        id: item.id,
+        donorId: item.donor_id,
+        donorName: currentUser?.name || "Unknown",
+        title: item.title,
+        description: item.description || "",
+        foodType: item.food_type,
+        quantity: item.quantity,
+        expiryDate: item.expiry_date,
+        storageRequirements: item.storage_requirements || "Room temperature",
+        pickupAddress: item.pickup_address,
+        pickupInstructions: item.pickup_instructions || "",
+        status: item.status as Donation["status"],
+        createdAt: item.created_at || new Date().toISOString(),
+        reservedBy: item.reserved_by || undefined,
+        reservedByName: undefined, // We don't have this information yet
+        pickupTime: item.pickup_time || undefined,
+        volunteerId: item.volunteer_id || undefined,
+        volunteerName: undefined, // We don't have this information yet
+      }));
     },
     enabled: !!currentUser?.id,
   });
