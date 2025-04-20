@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,114 +9,21 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { toast } from "@/components/ui/use-toast";
-
-interface Notification {
-  id: string;
-  userId: string;
-  message: string;
-  isRead: boolean;
-  createdAt: string;
-  related_id?: string;
-  related_type?: string;
-}
+import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationItem } from "./NotificationItem";
+import { Notification } from "@/types/notification";
 
 export default function NotificationCenter() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const fetchNotifications = async () => {
-      try {
-        // Using any type here to bypass TypeScript's type checking
-        // This is a temporary solution until the Supabase types are updated
-        const { data, error } = await (supabase as any)
-          .from('notifications')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (error) throw error;
-        
-        setNotifications(data.map((item: any) => ({
-          id: item.id,
-          userId: item.user_id,
-          message: item.message,
-          isRead: item.is_read,
-          createdAt: item.created_at,
-          related_id: item.related_id,
-          related_type: item.related_type
-        })));
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('public:notifications')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${currentUser.id}`
-      }, (payload) => {
-        const newNotification = {
-          id: payload.new.id,
-          userId: payload.new.user_id,
-          message: payload.new.message,
-          isRead: payload.new.is_read,
-          createdAt: payload.new.created_at,
-          related_id: payload.new.related_id,
-          related_type: payload.new.related_type
-        };
-        setNotifications(prev => [newNotification, ...prev].slice(0, 10));
-        
-        // Show toast for new notification
-        toast({
-          title: "New Notification",
-          description: payload.new.message,
-        });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUser]);
+  const { notifications, loading, markAsRead, markAllAsRead } = useNotifications(currentUser?.id);
 
   const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read
     if (!notification.isRead) {
-      try {
-        // Using any type here to bypass TypeScript's type checking
-        await (supabase as any)
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('id', notification.id);
-          
-        setNotifications(notifications.map(n => 
-          n.id === notification.id ? { ...n, isRead: true } : n
-        ));
-      } catch (error) {
-        console.error("Error marking notification as read:", error);
-      }
+      await markAsRead(notification.id);
     }
     
-    // Navigate based on notification type
     if (notification.related_type && notification.related_id) {
       if (notification.related_type === 'donation') {
         if (currentUser?.role === 'donor') {
@@ -132,23 +39,6 @@ export default function NotificationCenter() {
     }
     
     setOpen(false);
-  };
-
-  const markAllAsRead = async () => {
-    if (!currentUser) return;
-    
-    try {
-      // Using any type here to bypass TypeScript's type checking
-      await (supabase as any)
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', currentUser.id)
-        .eq('is_read', false);
-        
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
-    }
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -186,32 +76,11 @@ export default function NotificationCenter() {
           ) : (
             <div>
               {notifications.map((notification) => (
-                <div
+                <NotificationItem
                   key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={cn(
-                    "p-4 border-b last:border-0 hover:bg-muted cursor-pointer",
-                    !notification.isRead && "bg-muted/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "w-2 h-2 mt-2 rounded-full",
-                      !notification.isRead ? "bg-primary" : "bg-muted-foreground/30"
-                    )} />
-                    <div className="flex-1">
-                      <p className={cn(
-                        "text-sm",
-                        !notification.isRead && "font-medium"
-                      )}>
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  notification={notification}
+                  onClick={handleNotificationClick}
+                />
               ))}
             </div>
           )}

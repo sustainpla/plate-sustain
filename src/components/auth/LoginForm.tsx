@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -39,7 +38,6 @@ export default function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(values.email, values.password);
-      // After successful login, redirect based on user role
       navigate("/");
     } catch (error) {
       console.error("Login error:", error);
@@ -121,17 +119,6 @@ export default function LoginForm() {
             Sign up
           </Link>
         </p>
-      </div>
-
-      {/* Demo account credentials */}
-      <div className="border rounded-md p-4 bg-muted/50">
-        <h3 className="font-medium text-sm mb-2">Demo Accounts</h3>
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p>Donor: donor@example.com</p>
-          <p>NGO: ngo@example.com</p>
-          <p>Volunteer: volunteer@example.com</p>
-          <p className="italic mt-1">Any password will work with these emails</p>
-        </div>
       </div>
     </div>
   );
