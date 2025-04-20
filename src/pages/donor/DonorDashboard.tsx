@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -14,7 +13,7 @@ import { Plus, ChevronRight, Info, ShoppingBasket, Clock } from "lucide-react";
 export default function DonorDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [donations, setDonations] = useState<Donation[]>([]);
+  const donations = useDonationUpdates(currentUser?.id || '');
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -28,21 +27,14 @@ export default function DonorDashboard() {
       return;
     }
 
-    // Filter donations for the current donor
-    const donorDonations = mockDonations.filter(
-      (donation) => donation.donorId === currentUser.id
-    );
-    
-    setDonations(donorDonations);
-
     // Calculate stats
     setStats({
-      total: donorDonations.length,
-      active: donorDonations.filter((d) => d.status === "listed").length,
-      reserved: donorDonations.filter((d) => d.status === "reserved" || d.status === "pickedUp").length,
-      delivered: donorDonations.filter((d) => d.status === "delivered").length,
+      total: donations.length,
+      active: donations.filter((d) => d.status === "listed").length,
+      reserved: donations.filter((d) => d.status === "reserved" || d.status === "pickedUp").length,
+      delivered: donations.filter((d) => d.status === "delivered").length,
     });
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, donations]);
 
   const getRecentDonations = () => {
     return donations.slice(0, 3);
