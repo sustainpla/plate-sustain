@@ -17,11 +17,12 @@ import Profile from "./pages/Profile";
 import DonorDashboard from "./pages/donor/DonorDashboard";
 import CreateDonation from "./pages/donor/CreateDonation";
 import MyDonations from "./pages/donor/MyDonations";
+import DonationDetails from "./pages/donor/DonationDetails";
 
 // NGO Pages
 import NGODashboard from "./pages/ngo/NGODashboard";
 import AvailableDonations from "./pages/ngo/AvailableDonations";
-import DonationDetails from "./pages/ngo/DonationDetails";
+import NGODonationDetails from "./pages/ngo/DonationDetails";
 
 // Volunteer Pages
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
@@ -47,11 +48,12 @@ const App = () => (
           <Route path="/donor/dashboard" element={<DonorDashboard />} />
           <Route path="/donor/create-donation" element={<CreateDonation />} />
           <Route path="/donor/donations" element={<MyDonations />} />
+          <Route path="/donor/donation/:id" element={<DonationDetails />} />
           
           {/* NGO Routes */}
           <Route path="/ngo/dashboard" element={<NGODashboard />} />
           <Route path="/ngo/available-donations" element={<AvailableDonations />} />
-          <Route path="/ngo/donation/:id" element={<DonationDetails />} />
+          <Route path="/ngo/donation/:id" element={<NGODonationDetails />} />
           
           {/* Volunteer Routes */}
           <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />

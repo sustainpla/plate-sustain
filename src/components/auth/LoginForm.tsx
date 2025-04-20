@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,10 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
 export default function LoginForm() {
@@ -38,9 +40,14 @@ export default function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(values.email, values.password);
-      navigate("/");
+      // Navigation is handled in the AuthContext after login
     } catch (error) {
       console.error("Login error:", error);
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Invalid login credentials",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
