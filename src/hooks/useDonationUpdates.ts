@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Donation } from "@/lib/types";
+import { Donation, DonationStatus } from "@/lib/types";
 
 export function useDonationUpdates(userId: string) {
   const [donations, setDonations] = useState<Donation[]>([]);
@@ -32,7 +32,7 @@ export function useDonationUpdates(userId: string) {
           storageRequirements: item.storage_requirements || "",
           pickupAddress: item.pickup_address,
           pickupInstructions: item.pickup_instructions || "",
-          status: item.status,
+          status: item.status as DonationStatus,
           createdAt: item.created_at || new Date().toISOString(),
           reservedBy: item.reserved_by,
           reservedByName: item.reserved_by?.name,

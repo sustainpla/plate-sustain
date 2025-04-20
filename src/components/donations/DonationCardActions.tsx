@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Donation } from "@/lib/types";
-import { Eye, ClockCheck, PackageCheck } from "lucide-react";
+import { Eye, Clock, PackageCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -53,7 +53,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
           size="sm" 
           onClick={() => handleStatusUpdate("reserved")}
         >
-          <ClockCheck className="mr-2 h-4 w-4" />
+          <Clock className="mr-2 h-4 w-4" />
           Reserve
         </Button>
       )}

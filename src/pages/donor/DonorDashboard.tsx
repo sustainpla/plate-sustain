@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Donation } from "@/lib/types";
-import { donations as mockDonations } from "@/lib/mock-data";
+import { useDonationUpdates } from "@/hooks/useDonationUpdates";
 import DonationCard from "@/components/donations/DonationCard";
 import { Plus, ChevronRight, Info, ShoppingBasket, Clock } from "lucide-react";
 
