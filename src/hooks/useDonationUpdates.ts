@@ -3,21 +3,28 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Donation, DonationStatus } from "@/lib/types";
 
-export function useDonationUpdates(userId: string) {
+export function useDonationUpdates(userId: string, type: "donor" | "ngo" = "donor") {
   const [donations, setDonations] = useState<Donation[]>([]);
 
   useEffect(() => {
     // Initial fetch
     const fetchDonations = async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('donations')
         .select(`
           *,
           reserved_by:profiles!donations_reserved_by_fkey(name),
           volunteer:profiles!donations_volunteer_id_fkey(name)
         `)
-        .eq('donor_id', userId)
-        .order('created_at', { ascending: false });
+        
+      // Filter based on type (donor or ngo)
+      if (type === "donor") {
+        query.eq('donor_id', userId);
+      } else if (type === "ngo") {
+        query.eq('reserved_by', userId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (!error && data) {
         const formattedDonations: Donation[] = data.map(item => ({
@@ -55,7 +62,7 @@ export function useDonationUpdates(userId: string) {
           event: '*',
           schema: 'public',
           table: 'donations',
-          filter: `donor_id=eq.${userId}`,
+          filter: type === "donor" ? `donor_id=eq.${userId}` : `reserved_by=eq.${userId}`,
         },
         () => {
           fetchDonations();
@@ -66,7 +73,7 @@ export function useDonationUpdates(userId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, type]);
 
   return donations;
 }

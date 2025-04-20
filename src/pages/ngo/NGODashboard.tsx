@@ -1,58 +1,30 @@
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { Donation } from "@/lib/types";
-import { donations as mockDonations } from "@/lib/mock-data";
+import { useDonationUpdates } from "@/hooks/useDonationUpdates";
 import DonationCard from "@/components/donations/DonationCard";
 import { Search, ChevronRight, ShoppingBasket, Package, Truck, Check } from "lucide-react";
 
 export default function NGODashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [reservations, setReservations] = useState<Donation[]>([]);
-  const [availableDonations, setAvailableDonations] = useState<Donation[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    pickups: 0,
-    received: 0,
-  });
+  const reservations = useDonationUpdates(currentUser?.id || "", "ngo");
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ngo") {
       navigate("/login");
-      return;
     }
-
-    // Filter donations for the current NGO
-    const ngoReservations = mockDonations.filter(
-      (donation) => donation.reservedBy === currentUser.id
-    );
-    
-    // Filter available donations
-    const available = mockDonations.filter(
-      (donation) => donation.status === "listed"
-    );
-    
-    setReservations(ngoReservations);
-    setAvailableDonations(available);
-
-    // Calculate stats
-    setStats({
-      total: ngoReservations.length,
-      pending: ngoReservations.filter((d) => d.status === "reserved").length,
-      pickups: ngoReservations.filter((d) => d.status === "pickedUp").length,
-      received: ngoReservations.filter((d) => d.status === "delivered").length,
-    });
   }, [currentUser, navigate]);
 
-  const getRecentAvailableDonations = () => {
-    return availableDonations.slice(0, 3);
+  const stats = {
+    total: reservations.length,
+    pending: reservations.filter((d) => d.status === "reserved").length,
+    pickups: reservations.filter((d) => d.status === "pickedUp").length,
+    received: reservations.filter((d) => d.status === "delivered").length,
   };
 
   return (
@@ -119,45 +91,6 @@ export default function NGODashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Recent Available Donations */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Available Donations</CardTitle>
-            <CardDescription>
-              Recently listed food donations in your area
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {availableDonations.length > 0 ? (
-              <div className="space-y-4">
-                {getRecentAvailableDonations().map((donation) => (
-                  <DonationCard 
-                    key={donation.id} 
-                    donation={donation} 
-                    viewType="ngo"
-                    onAction={() => navigate(`/ngo/donation/${donation.id}`)}
-                    actionLabel="Reserve"
-                  />
-                ))}
-                {availableDonations.length > 3 && (
-                  <Button
-                    variant="outline"
-                    className="w-full mt-4"
-                    onClick={() => navigate("/ngo/available-donations")}
-                  >
-                    View All Available Donations
-                    <ChevronRight size={16} className="ml-2" />
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground">No available donations at the moment</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Reservations */}
         <Card>

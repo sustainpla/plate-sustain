@@ -26,7 +26,10 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
     try {
       const { error } = await supabase
         .from('donations')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          reserved_by: newStatus === "reserved" ? supabase.auth.getUser()?.data?.user?.id : donation.reservedBy
+        })
         .eq('id', donation.id);
 
       if (error) throw error;
