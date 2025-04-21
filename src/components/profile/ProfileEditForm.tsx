@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ interface ProfileEditFormProps {
 }
 
 export default function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: currentUser?.name || "",
@@ -22,9 +22,27 @@ export default function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
     address: currentUser?.address || "",
   });
 
+  // Update form data when currentUser changes
+  useEffect(() => {
+    if (currentUser) {
+      setFormData({
+        name: currentUser.name || "",
+        phone: currentUser.phone || "",
+        address: currentUser.address || "",
+      });
+    }
+  }, [currentUser]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser) {
+      toast({
+        title: "Not authenticated",
+        description: "Please login to update your profile",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -44,8 +62,14 @@ export default function ProfileEditForm({ onSuccess }: ProfileEditFormProps) {
         description: "Your profile has been updated successfully",
       });
 
+      // Refresh the user data in the context
+      if (refreshUser) {
+        await refreshUser();
+      }
+
       if (onSuccess) onSuccess();
     } catch (error) {
+      console.error("Profile update error:", error);
       toast({
         title: "Error",
         description: "Failed to update profile",

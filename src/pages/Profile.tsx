@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -32,7 +31,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function Profile() {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,6 +43,16 @@ export default function Profile() {
       phone: currentUser?.phone || "",
     },
   });
+
+  React.useEffect(() => {
+    if (currentUser) {
+      form.reset({
+        name: currentUser.name || "",
+        address: currentUser.address || "",
+        phone: currentUser.phone || "",
+      });
+    }
+  }, [currentUser, form]);
 
   const onSubmit = async (values: ProfileFormValues) => {
     if (!currentUser) {
@@ -74,16 +83,7 @@ export default function Profile() {
         description: "Your profile has been updated successfully",
       });
 
-      // Update local user profile
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .single();
-
-      if (!profileError && updatedProfile) {
-        // The AuthContext will handle the user update via subscription
-      }
+      await refreshUser();
     } catch (error) {
       toast({
         title: "Update failed",

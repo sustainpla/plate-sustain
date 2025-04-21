@@ -1,204 +1,177 @@
-
-import React, { createContext, useState, useContext, useEffect } from "react";
-import { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { User, UserRole } from "@/lib/types";
+import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
+import { User, UserRole } from "@/lib/types";
 
-interface AuthContextType {
+export interface AuthContextType {
   currentUser: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
 
-  const handleRoleBasedRedirect = (role: UserRole) => {
-    switch (role) {
-      case "donor":
-        navigate("/donor/dashboard");
-        break;
-      case "ngo":
-        navigate("/ngo/dashboard");
-        break;
-      case "volunteer":
-        navigate("/volunteer/dashboard");
-        break;
-      default:
-        navigate("/");
-    }
-  };
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) {
-            setCurrentUser({
-              id: session.user.id,
-              email: session.user.email!,
-              name: profile.name,
-              role: profile.role as UserRole,
-              address: profile.address,
-              phone: profile.phone,
-            });
-          }
-        } else {
-          setCurrentUser(null);
-        }
-        setIsLoading(false);
-      }
-    );
-
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (profile) {
-              setCurrentUser({
-                id: session.user.id,
-                email: session.user.email!,
-                name: profile.name,
-                role: profile.role as UserRole,
-                address: profile.address,
-                phone: profile.phone,
-              });
-            } else if (error) {
-              console.error("Error fetching profile:", error);
-            }
-          });
-      }
+  const signIn = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error };
+    } finally {
       setIsLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (profile) {
-        handleRoleBasedRedirect(profile.role as UserRole);
-      }
-
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
-    } catch (error) {
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-      throw error;
     }
   };
 
-  const logout = async () => {
+  const signUp = async (email: string, password: string, userData: Partial<User>) => {
     try {
-      await supabase.auth.signOut();
-      setCurrentUser(null);
-      navigate("/login");
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-    } catch (error) {
-      toast({
-        title: "Logout failed",
-        description: "An error occurred while logging out",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const register = async (email: string, password: string, name: string, role: UserRole) => {
-    try {
-      const { error: signUpError, data } = await supabase.auth.signUp({
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name,
-            role,
+            ...userData,
           },
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              name: userData.name,
+              role: userData.role,
+              address: userData.address,
+              phone: userData.phone,
+              profile_image: userData.profileImage,
+            },
+          ]);
 
-      toast({
-        title: "Registration successful",
-        description: "Your account has been created. You can now log in.",
-      });
-      
-      navigate("/login");
-    } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-      throw error;
+        if (profileError) {
+          console.error("Error creating profile:", profileError);
+          return { error: profileError };
+        }
+      }
+
+      return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const signOut = async () => {
+    try {
+      setIsLoading(true);
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add refreshUser function to get the latest user data
+  const refreshUser = async () => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userData.user.id)
+          .single();
+        
+        if (profile) {
+          const userRole = userData.user.user_metadata.role || profile.role || 'donor';
+          
+          setCurrentUser({
+            id: userData.user.id,
+            email: userData.user.email || '',
+            name: profile.name,
+            role: userRole as UserRole,
+            address: profile.address,
+            phone: profile.phone,
+            profileImage: profile.profile_image,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+          if (session?.user) {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (error) {
+              console.error("Error fetching profile:", error);
+              setIsLoading(false);
+              return;
+            }
+
+            if (profile) {
+              const userRole = session.user.user_metadata.role || profile.role || 'donor';
+
+              setCurrentUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                name: profile.name,
+                role: userRole as UserRole,
+                address: profile.address,
+                phone: profile.phone,
+                profileImage: profile.profile_image,
+              });
+            }
+          }
+        } else if (event === "SIGNED_OUT") {
+          setCurrentUser(null);
+        }
+
+        setIsLoading(false);
+      }
+    );
+    
+    // Add refreshUser to the returned context
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
-        isAuthenticated: !!currentUser,
         isLoading,
-        login,
-        logout,
-        register,
+        signIn,
+        signUp,
+        signOut,
+        refreshUser, // Add the new refreshUser function
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}
