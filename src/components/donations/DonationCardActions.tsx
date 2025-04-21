@@ -24,15 +24,11 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
 
   const handleStatusUpdate = async (newStatus: "reserved" | "delivered") => {
     try {
-      // Get the current user ID properly
-      const { data: userData } = await supabase.auth.getUser();
-      const currentUserId = userData?.user?.id;
-
       const { error } = await supabase
         .from('donations')
         .update({ 
           status: newStatus,
-          reserved_by: newStatus === "reserved" ? currentUserId : donation.reservedBy
+          reserved_by: newStatus === "reserved" ? supabase.auth.getUser()?.data?.user?.id : donation.reservedBy
         })
         .eq('id', donation.id);
 
