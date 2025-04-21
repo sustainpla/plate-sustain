@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +15,7 @@ import Profile from "./pages/Profile";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
+import Team from "./pages/Team";
 
 // Donor Pages
 import DonorDashboard from "./pages/donor/DonorDashboard";
@@ -48,7 +50,8 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
-          
+          <Route path="/team" element={<Team />} />
+
           {/* Donor Routes */}
           <Route path="/donor/dashboard" element={<DonorDashboard />} />
           <Route path="/donor/create-donation" element={<CreateDonation />} />

@@ -16,8 +16,8 @@ export default function Contact() {
         <div className="bg-sustainPlate-beige/50 p-6 rounded-md shadow">
           <h2 className="font-semibold text-xl mb-2">Send us a message</h2>
           <ul className="list-disc ml-6 text-muted-foreground space-y-1 mb-4">
-            <li>Email: <a href="mailto:support@sustainplate.com" className="text-sustainPlate-green hover:underline">support@sustainplate.com</a></li>
-            <li>Address: 123 FoodShare Lane, City, Country</li>
+            <li>Email: <a href="mailto:plate.sustain@gmail.com" className="text-sustainPlate-green hover:underline">plate.sustain@gmail.com</a></li>
+            <li>Address: Thapar Institute of eng and tech Patiala</li>
           </ul>
           <p>Or reach out through our <a href="https://twitter.com/lovable_dev" className="text-sustainPlate-green hover:underline" target="_blank" rel="noopener">Twitter</a>.</p>
         </div>

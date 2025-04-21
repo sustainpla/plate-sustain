@@ -28,7 +28,7 @@ export default function Privacy() {
         <div>
           <h2 className="font-semibold text-xl mb-2">Questions?</h2>
           <p>
-            Contact us at <a href="mailto:support@sustainplate.com" className="text-sustainPlate-green underline">support@sustainplate.com</a>
+            Contact us at <a href="mailto:plate.sustain@gmail.com" className="text-sustainPlate-green underline">plate.sustain@gmail.com</a>
           </p>
         </div>
       </div>

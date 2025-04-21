@@ -6,8 +6,13 @@ export default function Footer() {
   return (
     <footer className="border-t py-6 md:py-8">
       <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
+        {/* Logo section (match header) */}
         <div className="flex items-center gap-2">
-          <Utensils size={18} className="text-sustainPlate-green" />
+          <img
+            src="/lovable-uploads/ed233620-3184-47b8-86ea-d13908d35950.png"
+            alt="SustainPlate Logo"
+            className="w-8 h-8 rounded-full"
+          />
           <span className="font-semibold">SustainPlate</span>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -16,6 +21,9 @@ export default function Footer() {
         <div className="flex items-center gap-4">
           <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground">
             About
+          </Link>
+          <Link to="/team" className="text-sm text-muted-foreground hover:text-foreground">
+            Team
           </Link>
           <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground">
             Contact
