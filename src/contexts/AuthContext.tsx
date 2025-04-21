@@ -6,14 +6,14 @@ import { User, UserRole } from "@/lib/types";
 export interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
-  isAuthenticated: boolean; // Add this property
+  isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  login: (email: string, password: string) => Promise<{ error: Error | null }>; // Add alias for signIn
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>; // Add method for RegisterForm
-  logout: () => Promise<void>; // Add alias for signOut
+  login: (email: string, password: string) => Promise<{ error: Error | null }>;
+  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,7 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: userData.role,
               address: userData.address,
               phone: userData.phone,
-              profile_image: userData.profileImage,
+              // profile_image is not a column in the profiles table
+              // Let's not include it in the insert
             },
           ]);
 
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: userRole as UserRole,
             address: profile.address,
             phone: profile.phone,
-            profileImage: profile.profile_image,
+            profileImage: null, // Since profile_image doesn't exist in the table, set to null
           });
           setIsAuthenticated(true);
         }
@@ -159,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: userRole as UserRole,
                 address: profile.address,
                 phone: profile.phone,
-                profileImage: profile.profile_image,
+                profileImage: null, // Since profile_image doesn't exist in the table, set to null
               });
               setIsAuthenticated(true);
             }
