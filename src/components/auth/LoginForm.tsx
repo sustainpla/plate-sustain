@@ -39,7 +39,8 @@ export default function LoginForm() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
-      await login(values.email, values.password);
+      const { error } = await login(values.email, values.password);
+      if (error) throw error;
       // Navigation is handled in the AuthContext after login
     } catch (error) {
       console.error("Login error:", error);

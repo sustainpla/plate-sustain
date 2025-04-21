@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, UserRole } from "@/lib/types";
@@ -5,10 +6,14 @@ import { User, UserRole } from "@/lib/types";
 export interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean; // Add this property
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ error: Error | null }>; // Add alias for signIn
+  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>; // Add method for RegisterForm
+  logout: () => Promise<void>; // Add alias for signOut
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,6 +21,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -26,6 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  // Alias for signIn
+  const login = signIn;
 
   const signUp = async (email: string, password: string, userData: Partial<User>) => {
     try {
@@ -67,15 +76,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // More comprehensive register function for RegisterForm
+  const register = async (email: string, password: string, name: string, role: UserRole) => {
+    const userData = { name, role };
+    const { error } = await signUp(email, password, userData);
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     try {
       setIsLoading(true);
       await supabase.auth.signOut();
       setCurrentUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Alias for signOut
+  const logout = signOut;
 
   // Add refreshUser function to get the latest user data
   const refreshUser = async () => {
@@ -100,10 +120,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             phone: profile.phone,
             profileImage: profile.profile_image,
           });
+          setIsAuthenticated(true);
         }
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
+      setIsAuthenticated(false);
     }
   };
 
@@ -121,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (error) {
               console.error("Error fetching profile:", error);
               setIsLoading(false);
+              setIsAuthenticated(false);
               return;
             }
 
@@ -136,17 +161,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 phone: profile.phone,
                 profileImage: profile.profile_image,
               });
+              setIsAuthenticated(true);
             }
           }
         } else if (event === "SIGNED_OUT") {
           setCurrentUser(null);
+          setIsAuthenticated(false);
         }
 
         setIsLoading(false);
       }
     );
     
-    // Add refreshUser to the returned context
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -157,10 +183,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentUser,
         isLoading,
+        isAuthenticated,
         signIn,
         signUp,
         signOut,
-        refreshUser, // Add the new refreshUser function
+        refreshUser,
+        login,
+        register,
+        logout,
       }}
     >
       {children}
