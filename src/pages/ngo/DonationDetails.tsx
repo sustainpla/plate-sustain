@@ -56,54 +56,11 @@ export default function DonationDetails() {
     enabled: !!id && !!currentUser?.id,
   });
 
-  // Subscribe to real-time updates
-  useEffect(() => {
-    if (!id) return;
-    
-    const channel = supabase
-      .channel(`donation-${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'donations',
-          filter: `id=eq.${id}`
-        },
-        () => {
-          refetch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id, refetch]);
-
   const handleReserveDonation = async () => {
     if (!currentUser || !donation) return;
     
     setIsReserving(true);
     try {
-      // First check if the donation is still available
-      const { data: currentDonation } = await supabase
-        .from('donations')
-        .select('status')
-        .eq('id', donation.id)
-        .single();
-
-      if (currentDonation?.status !== "listed") {
-        toast({
-          title: "Reservation failed",
-          description: "This donation has already been reserved by another NGO",
-          variant: "destructive",
-        });
-        refetch();
-        setIsReserving(false);
-        return;
-      }
-      
       const { error } = await supabase
         .from("donations")
         .update({
@@ -121,11 +78,6 @@ export default function DonationDetails() {
       });
       
       refetch();
-      
-      // Navigate to reservations page after successful reservation
-      setTimeout(() => {
-        navigate("/ngo/reservations");
-      }, 1500);
     } catch (error) {
       toast({
         title: "Reservation failed",

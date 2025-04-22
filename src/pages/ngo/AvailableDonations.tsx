@@ -8,7 +8,6 @@ import Layout from "@/components/Layout";
 import DonationCard from "@/components/donations/DonationCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Donation } from "@/lib/types";
-import { Loader2 } from "lucide-react";
 
 export default function AvailableDonations() {
   const { currentUser } = useAuth();
@@ -20,7 +19,7 @@ export default function AvailableDonations() {
     }
   }, [currentUser, navigate]);
 
-  const { data: donations, isLoading, refetch } = useQuery({
+  const { data: donations, isLoading } = useQuery({
     queryKey: ["available-donations"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -31,6 +30,7 @@ export default function AvailableDonations() {
 
       if (error) throw error;
       
+      // Map the database response to match our Donation type
       return data.map(item => ({
         id: item.id,
         donorId: item.donor_id,
@@ -53,29 +53,6 @@ export default function AvailableDonations() {
     enabled: !!currentUser?.id,
   });
 
-  // Subscribe to real-time updates
-  useEffect(() => {
-    const channel = supabase
-      .channel('donation-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'donations',
-        },
-        () => {
-          // Refetch donations when changes occur
-          refetch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refetch]);
-
   return (
     <Layout>
       <div className="container py-8">
@@ -90,10 +67,7 @@ export default function AvailableDonations() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                <p className="mt-2 text-muted-foreground">Loading donations...</p>
-              </div>
+              <div className="text-center py-8">Loading...</div>
             ) : donations?.length ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {donations.map((donation) => (
@@ -101,6 +75,8 @@ export default function AvailableDonations() {
                     key={donation.id} 
                     donation={donation}
                     viewType="ngo"
+                    onAction={() => navigate(`/ngo/donation/${donation.id}`)}
+                    actionLabel="View Details"
                   />
                 ))}
               </div>
