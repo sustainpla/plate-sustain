@@ -8,6 +8,7 @@ import Layout from "@/components/Layout";
 import DonationCard from "@/components/donations/DonationCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Donation } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 export default function AvailableDonations() {
   const { currentUser } = useAuth();
@@ -62,7 +63,6 @@ export default function AvailableDonations() {
           event: '*',
           schema: 'public',
           table: 'donations',
-          filter: 'status=eq.listed'
         },
         () => {
           // Refetch donations when changes occur
@@ -90,7 +90,10 @@ export default function AvailableDonations() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8">Loading...</div>
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                <p className="mt-2 text-muted-foreground">Loading donations...</p>
+              </div>
             ) : donations?.length ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {donations.map((donation) => (

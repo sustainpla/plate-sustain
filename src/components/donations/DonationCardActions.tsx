@@ -102,7 +102,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
   const showDeliverButton = viewType === "ngo" && donation.status === "reserved";
 
   return (
-    <div className="mt-4 flex justify-end gap-2">
+    <div className="w-full flex justify-end gap-2">
       {showReserveButton && (
         <Button 
           variant="secondary" 
@@ -115,7 +115,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
         </Button>
       )}
       
-      {showDeliverButton && donation.status === "reserved" && (
+      {showDeliverButton && (
         <Button 
           variant="outline" 
           size="sm" 

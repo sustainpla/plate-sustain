@@ -1,12 +1,12 @@
 
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, ShoppingBasket, Thermometer } from "lucide-react";
 import { Donation } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import DonationCardActions from "./DonationCardActions";
 
 interface DonationCardProps {
   donation: Donation;
@@ -35,20 +35,6 @@ export default function DonationCard({
     delivered: "status-delivered",
   };
 
-  const getActionButton = () => {
-    if (!onAction) return null;
-
-    return (
-      <Button 
-        onClick={() => onAction(donation)}
-        variant="default"
-        className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
-      >
-        {actionLabel || "View Details"}
-      </Button>
-    );
-  };
-
   const createdAt = new Date(donation.createdAt);
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
 
@@ -61,11 +47,9 @@ export default function DonationCard({
     )}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <Link to={`/donations/${donation.id}`}>
-            <CardTitle className="text-xl hover:text-sustainPlate-green hover:underline transition-colors">
-              {donation.title}
-            </CardTitle>
-          </Link>
+          <CardTitle className="text-xl">
+            {donation.title}
+          </CardTitle>
           <span className={cn("status-badge", statusClasses[donation.status])}>
             {statusMap[donation.status]}
           </span>
@@ -97,11 +81,25 @@ export default function DonationCard({
           </div>
         </div>
       </CardContent>
-      {onAction && (
-        <CardFooter className="pt-0">
-          {getActionButton()}
-        </CardFooter>
-      )}
+      <CardFooter className="pt-0">
+        {/* Always show DonationCardActions for NGO view */}
+        {viewType === "ngo" && (
+          <DonationCardActions 
+            donation={donation} 
+            viewType="ngo" 
+          />
+        )}
+        
+        {/* For custom action handler */}
+        {onAction && (
+          <button 
+            onClick={() => onAction(donation)}
+            className="ml-auto px-4 py-2 bg-sustainPlate-green text-white rounded hover:bg-sustainPlate-green-dark transition-colors"
+          >
+            {actionLabel || "View Details"}
+          </button>
+        )}
+      </CardFooter>
     </Card>
   );
 }
