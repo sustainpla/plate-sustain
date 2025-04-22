@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 export default function AvailableDonations() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQuery().client;
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ngo") {
@@ -68,7 +69,7 @@ export default function AvailableDonations() {
         }, 
         () => {
           // When any donation changes, refresh the available donations list
-          // The useQuery hook will handle the refetching
+          queryClient.invalidateQueries({ queryKey: ["available-donations"] });
         }
       )
       .subscribe();
@@ -76,7 +77,7 @@ export default function AvailableDonations() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <Layout>

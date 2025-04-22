@@ -80,10 +80,21 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
     }
   };
 
-  // Don't show any action buttons if not relevant to the user
-  if (viewType !== "ngo") {
+  // Show delivered button only on reserved donations that were reserved by current user
+  if (donation.status === "reserved" && donation.reservedBy === currentUser?.id && viewType === "ngo") {
     return (
       <div className="mt-4 flex justify-end gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handleStatusUpdate("delivered")}
+          disabled={isProcessing}
+          className="bg-sustainPlate-status-delivered hover:bg-sustainPlate-status-delivered/80 text-white"
+        >
+          <PackageCheck className="mr-2 h-4 w-4" />
+          Mark Delivered
+        </Button>
+        
         <Button 
           variant="outline" 
           size="sm" 
@@ -96,34 +107,9 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
     );
   }
 
+  // Only show View Details button for all other cases
   return (
     <div className="mt-4 flex justify-end gap-2">
-      {donation.status === "listed" && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => handleStatusUpdate("reserved")}
-          disabled={isProcessing}
-          className="bg-sustainPlate-status-listed hover:bg-sustainPlate-status-listed/80 text-white"
-        >
-          <Clock className="mr-2 h-4 w-4" />
-          Reserve
-        </Button>
-      )}
-      
-      {donation.status === "reserved" && donation.reservedBy === currentUser?.id && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => handleStatusUpdate("delivered")}
-          disabled={isProcessing}
-          className="bg-sustainPlate-status-delivered hover:bg-sustainPlate-status-delivered/80 text-white"
-        >
-          <PackageCheck className="mr-2 h-4 w-4" />
-          Mark Delivered
-        </Button>
-      )}
-      
       <Button 
         variant="outline" 
         size="sm" 

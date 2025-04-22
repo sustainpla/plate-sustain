@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -17,6 +17,7 @@ export default function DonationDetails() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isReserving, setIsReserving] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ngo") {
@@ -56,6 +57,32 @@ export default function DonationDetails() {
     enabled: !!id && !!currentUser?.id,
   });
 
+  // Set up real-time subscription to this specific donation
+  useEffect(() => {
+    if (!id) return;
+    
+    // Subscribe to changes for this specific donation
+    const channel = supabase
+      .channel(`donation-${id}-changes`)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+          filter: `id=eq.${id}`
+        }, 
+        () => {
+          // When the donation changes, refetch it
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, refetch]);
+
   const handleReserveDonation = async () => {
     if (!currentUser || !donation) return;
     
@@ -72,12 +99,19 @@ export default function DonationDetails() {
       
       if (error) throw error;
       
+      // Invalidate queries to force a refresh
+      queryClient.invalidateQueries({ queryKey: ["available-donations"] });
+      queryClient.invalidateQueries({ queryKey: ["donation-updates"] });
+      queryClient.invalidateQueries({ queryKey: ["my-reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["donation", donation.id] });
+      
       toast({
         title: "Donation reserved",
         description: "You have successfully reserved this donation",
       });
       
-      refetch();
+      // Navigate to My Reservations after successful reservation
+      navigate("/ngo/my-reservations");
     } catch (error) {
       toast({
         title: "Reservation failed",

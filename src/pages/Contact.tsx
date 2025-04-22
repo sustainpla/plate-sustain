@@ -17,7 +17,7 @@ export default function Contact() {
           <h2 className="font-semibold text-xl mb-2">Send us a message</h2>
           <ul className="list-disc ml-6 text-muted-foreground space-y-1 mb-4">
             <li>Email: <a href="mailto:plate.sustain@gmail.com" className="text-sustainPlate-green hover:underline">plate.sustain@gmail.com</a></li>
-            <li>Address: Thapar Institute of eng and tech Patiala</li>
+            <li>Address: Thapar Institute of Engineering & Technology, Patiala</li>
           </ul>
         </div>
       </div>
