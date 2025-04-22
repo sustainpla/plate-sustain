@@ -51,6 +51,7 @@ export default function AvailableDonations() {
       }));
     },
     enabled: !!currentUser?.id,
+    refetchInterval: 5000, // Refetch every 5 seconds to get updated data
   });
 
   return (
@@ -75,8 +76,6 @@ export default function AvailableDonations() {
                     key={donation.id} 
                     donation={donation}
                     viewType="ngo"
-                    onAction={() => navigate(`/ngo/donation/${donation.id}`)}
-                    actionLabel="View Details"
                   />
                 ))}
               </div>

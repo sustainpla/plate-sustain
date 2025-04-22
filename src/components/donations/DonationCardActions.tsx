@@ -52,6 +52,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
       // Invalidate relevant queries to force a refresh
       queryClient.invalidateQueries({ queryKey: ["available-donations"] });
       queryClient.invalidateQueries({ queryKey: ["donation-updates"] });
+      queryClient.invalidateQueries({ queryKey: ["my-reservations"] });
       
       toast({
         title: "Status updated",
@@ -75,6 +76,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
           variant="outline" 
           size="sm" 
           onClick={() => handleStatusUpdate("reserved")}
+          className="bg-sustainPlate-status-listed hover:bg-sustainPlate-status-listed/80 text-white"
         >
           <Clock className="mr-2 h-4 w-4" />
           Reserve
@@ -86,6 +88,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
           variant="outline" 
           size="sm" 
           onClick={() => handleStatusUpdate("delivered")}
+          className="bg-sustainPlate-status-delivered hover:bg-sustainPlate-status-delivered/80 text-white"
         >
           <PackageCheck className="mr-2 h-4 w-4" />
           Mark Delivered

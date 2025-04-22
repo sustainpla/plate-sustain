@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDonationUpdates } from "@/hooks/useDonationUpdates";
 import NGOStatsCards from "@/components/ngo/NGOStatsCards";
@@ -37,13 +37,22 @@ export default function NGODashboard() {
               Manage your food reservations and find available donations
             </p>
           </div>
-          <Button 
-            onClick={() => navigate("/ngo/available-donations")}
-            className="mt-4 md:mt-0 bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
-          >
-            <Search size={16} className="mr-2" />
-            Browse Donations
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+            <Button 
+              onClick={() => navigate("/ngo/my-reservations")}
+              className="bg-sustainPlate-status-reserved hover:bg-sustainPlate-status-reserved/80"
+            >
+              <ClipboardList size={16} className="mr-2" />
+              My Reservations
+            </Button>
+            <Button 
+              onClick={() => navigate("/ngo/available-donations")}
+              className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
+            >
+              <Search size={16} className="mr-2" />
+              Browse Donations
+            </Button>
+          </div>
         </div>
 
         <NGOStatsCards 
