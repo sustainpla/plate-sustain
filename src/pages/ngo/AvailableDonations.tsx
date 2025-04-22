@@ -1,7 +1,7 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 export default function AvailableDonations() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQuery().client;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "ngo") {
