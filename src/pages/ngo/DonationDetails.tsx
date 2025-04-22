@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,16 +7,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
 import { Donation } from "@/lib/types";
-import { Loader2, MapPin, Calendar, Thermometer, Package, AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import DonationInfo from "@/components/donations/DonationInfo";
+import PickupInfo from "@/components/donations/PickupInfo";
+import ReservationButton from "@/components/donations/ReservationButton";
 
 export default function DonationDetails() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [isReserving, setIsReserving] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -86,47 +87,6 @@ export default function DonationDetails() {
     };
   }, [id, refetch, queryClient]);
 
-  const handleReserveDonation = async () => {
-    if (!currentUser || !donation) return;
-    
-    setIsReserving(true);
-    try {
-      const { error } = await supabase
-        .from("donations")
-        .update({
-          status: "reserved",
-          reserved_by: currentUser.id,
-        })
-        .eq("id", donation.id)
-        .eq("status", "listed"); // Only allow reserving if still listed
-      
-      if (error) throw error;
-      
-      // Invalidate queries to force a refresh
-      queryClient.invalidateQueries({ queryKey: ["available-donations"] });
-      queryClient.invalidateQueries({ queryKey: ["donation-updates"] });
-      queryClient.invalidateQueries({ queryKey: ["my-reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["donation", donation.id] });
-      
-      toast({
-        title: "Donation reserved",
-        description: "You have successfully reserved this donation",
-      });
-      
-      // Navigate to My Reservations after successful reservation
-      navigate("/ngo/my-reservations");
-    } catch (error) {
-      console.error("Reservation error:", error);
-      toast({
-        title: "Reservation failed",
-        description: "There was an error reserving this donation. It may already be reserved.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsReserving(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <Layout>
@@ -162,7 +122,6 @@ export default function DonationDetails() {
 
   const createdAt = new Date(donation.createdAt);
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
-  const expiryDate = new Date(donation.expiryDate);
 
   return (
     <Layout>
@@ -200,80 +159,17 @@ export default function DonationDetails() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Food Details</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-sustainPlate-green" />
-                    <div>
-                      <p className="font-medium">Food Type</p>
-                      <p>{donation.foodType}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-sustainPlate-orange" />
-                    <div>
-                      <p className="font-medium">Quantity</p>
-                      <p>{donation.quantity}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-red-500" />
-                    <div>
-                      <p className="font-medium">Expiry Date</p>
-                      <p>{expiryDate.toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="h-5 w-5 text-sustainPlate-status-pickedUp" />
-                    <div>
-                      <p className="font-medium">Storage Requirements</p>
-                      <p>{donation.storageRequirements}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Pickup Information</h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-sustainPlate-status-listed mt-1" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      <p>{donation.pickupAddress}</p>
-                    </div>
-                  </div>
-                  {donation.pickupInstructions && (
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-amber-500 mt-1" />
-                      <div>
-                        <p className="font-medium">Instructions</p>
-                        <p>{donation.pickupInstructions}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <DonationInfo donation={donation} />
+              <PickupInfo donation={donation} />
             </div>
           </CardContent>
           
           {donation.status === "listed" && (
             <CardFooter>
-              <Button 
-                onClick={handleReserveDonation}
-                disabled={isReserving}
-                className="w-full md:w-auto bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
-              >
-                {isReserving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Reserving...
-                  </>
-                ) : (
-                  "Reserve This Donation"
-                )}
-              </Button>
+              <ReservationButton 
+                donation={donation} 
+                currentUser={currentUser} 
+              />
             </CardFooter>
           )}
         </Card>
