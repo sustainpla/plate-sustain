@@ -74,6 +74,9 @@ export default function DonationDetails() {
         () => {
           // When the donation changes, refetch it
           refetch();
+          // Also invalidate the available donations and my reservations queries
+          queryClient.invalidateQueries({ queryKey: ["available-donations"] });
+          queryClient.invalidateQueries({ queryKey: ["my-reservations"] });
         }
       )
       .subscribe();
@@ -81,7 +84,7 @@ export default function DonationDetails() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, refetch]);
+  }, [id, refetch, queryClient]);
 
   const handleReserveDonation = async () => {
     if (!currentUser || !donation) return;
@@ -113,12 +116,12 @@ export default function DonationDetails() {
       // Navigate to My Reservations after successful reservation
       navigate("/ngo/my-reservations");
     } catch (error) {
+      console.error("Reservation error:", error);
       toast({
         title: "Reservation failed",
         description: "There was an error reserving this donation. It may already be reserved.",
         variant: "destructive",
       });
-      console.error("Reservation error:", error);
     } finally {
       setIsReserving(false);
     }
