@@ -1,25 +1,20 @@
 
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, ShoppingBasket, Thermometer } from "lucide-react";
 import { Donation } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import DonationCardActions from "./DonationCardActions";
 
 interface DonationCardProps {
   donation: Donation;
   viewType?: "donor" | "ngo" | "volunteer";
-  onAction?: (donation: Donation) => void;
-  actionLabel?: string;
 }
 
 export default function DonationCard({
   donation,
   viewType = "ngo",
-  onAction,
-  actionLabel,
 }: DonationCardProps) {
   const statusMap = {
     listed: "Available",
@@ -35,20 +30,6 @@ export default function DonationCard({
     delivered: "status-delivered",
   };
 
-  const getActionButton = () => {
-    if (!onAction) return null;
-
-    return (
-      <Button 
-        onClick={() => onAction(donation)}
-        variant="default"
-        className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
-      >
-        {actionLabel || "View Details"}
-      </Button>
-    );
-  };
-
   const createdAt = new Date(donation.createdAt);
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
 
@@ -61,11 +42,9 @@ export default function DonationCard({
     )}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <Link to={`/donations/${donation.id}`}>
-            <CardTitle className="text-xl hover:text-sustainPlate-green hover:underline transition-colors">
-              {donation.title}
-            </CardTitle>
-          </Link>
+          <CardTitle className="text-xl hover:text-sustainPlate-green transition-colors">
+            {donation.title}
+          </CardTitle>
           <span className={cn("status-badge", statusClasses[donation.status])}>
             {statusMap[donation.status]}
           </span>
@@ -76,8 +55,8 @@ export default function DonationCard({
           <span>{timeAgo}</span>
         </div>
       </CardHeader>
-      <CardContent className="pb-4">
-        <p className="text-sm mb-4">{donation.description}</p>
+      <CardContent>
+        <p className="text-sm mb-4 line-clamp-2">{donation.description}</p>
         <div className="grid grid-cols-2 gap-3 text-sm mb-2">
           <div className="flex items-center gap-2">
             <ShoppingBasket size={16} className="text-sustainPlate-green"/>
@@ -96,12 +75,12 @@ export default function DonationCard({
             <span>Pickup location</span>
           </div>
         </div>
+        
+        <DonationCardActions 
+          donation={donation} 
+          viewType={viewType} 
+        />
       </CardContent>
-      {onAction && (
-        <CardFooter className="pt-0">
-          {getActionButton()}
-        </CardFooter>
-      )}
     </Card>
   );
 }

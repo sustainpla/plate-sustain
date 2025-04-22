@@ -56,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       return [
         { to: "/ngo/dashboard", label: "Dashboard", icon: <Home size={20} /> },
         { to: "/ngo/available-donations", label: "Available Donations", icon: <Utensils size={20} /> },
-        { to: "/ngo/reservations", label: "My Reservations", icon: <Heart size={20} /> },
+        { to: "/ngo/my-reservations", label: "My Reservations", icon: <Heart size={20} /> },
         ...commonItems,
       ];
     }
