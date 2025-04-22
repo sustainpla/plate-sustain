@@ -79,6 +79,13 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
         description: `Donation has been ${newStatus === "reserved" ? "reserved" : "marked as delivered"}`,
       });
 
+      // Navigate to reservations page when successfully reserved
+      if (newStatus === "reserved") {
+        setTimeout(() => {
+          navigate("/ngo/reservations");
+        }, 1000);
+      }
+
     } catch (error) {
       console.error("Error updating donation status:", error);
       toast({
@@ -98,9 +105,10 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
     <div className="mt-4 flex justify-end gap-2">
       {showReserveButton && (
         <Button 
-          variant="outline" 
+          variant="secondary" 
           size="sm" 
           onClick={() => handleStatusUpdate("reserved")}
+          className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark text-white"
         >
           <Clock className="mr-2 h-4 w-4" />
           Reserve

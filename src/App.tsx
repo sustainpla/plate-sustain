@@ -25,6 +25,7 @@ import DonationDetails from "./pages/donor/DonationDetails";
 
 // NGO Pages
 import NGODashboard from "./pages/ngo/NGODashboard";
+import Reservations from "./pages/ngo/Reservations";
 import AvailableDonations from "./pages/ngo/AvailableDonations";
 import NGODonationDetails from "./pages/ngo/DonationDetails";
 
@@ -60,6 +61,7 @@ const App = () => (
           
           {/* NGO Routes */}
           <Route path="/ngo/dashboard" element={<NGODashboard />} />
+          <Route path="/ngo/reservations" element={<Reservations />} />
           <Route path="/ngo/available-donations" element={<AvailableDonations />} />
           <Route path="/ngo/donation/:id" element={<NGODonationDetails />} />
           
