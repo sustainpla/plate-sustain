@@ -39,13 +39,34 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
         return;
       }
 
+      // For reservations, first check if the donation is still available
+      if (newStatus === "reserved") {
+        const { data: currentDonation } = await supabase
+          .from('donations')
+          .select('status')
+          .eq('id', donation.id)
+          .single();
+
+        if (currentDonation?.status !== "listed") {
+          toast({
+            title: "Reservation failed",
+            description: "This donation has already been reserved by another NGO",
+            variant: "destructive",
+          });
+          // Refresh to get latest state
+          queryClient.invalidateQueries({ queryKey: ["available-donations"] });
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('donations')
         .update({ 
           status: newStatus,
           reserved_by: newStatus === "reserved" ? currentUserId : donation.reservedBy
         })
-        .eq('id', donation.id);
+        .eq('id', donation.id)
+        .eq('status', newStatus === "reserved" ? "listed" : "reserved"); // Only allow reserving if listed, delivering if reserved
 
       if (error) throw error;
 
@@ -55,7 +76,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
       
       toast({
         title: "Status updated",
-        description: `Donation has been marked as ${newStatus}`,
+        description: `Donation has been ${newStatus === "reserved" ? "reserved" : "marked as delivered"}`,
       });
 
     } catch (error) {
@@ -68,9 +89,14 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
     }
   };
 
+  // Only show reserve button for NGOs on listed donations
+  const showReserveButton = viewType === "ngo" && donation.status === "listed";
+  // Only show deliver button for NGOs on their reserved donations
+  const showDeliverButton = viewType === "ngo" && donation.status === "reserved";
+
   return (
     <div className="mt-4 flex justify-end gap-2">
-      {viewType === "ngo" && donation.status === "listed" && (
+      {showReserveButton && (
         <Button 
           variant="outline" 
           size="sm" 
@@ -81,7 +107,7 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
         </Button>
       )}
       
-      {viewType === "ngo" && donation.status === "reserved" && (
+      {showDeliverButton && donation.status === "reserved" && (
         <Button 
           variant="outline" 
           size="sm" 

@@ -19,7 +19,7 @@ export default function AvailableDonations() {
     }
   }, [currentUser, navigate]);
 
-  const { data: donations, isLoading } = useQuery({
+  const { data: donations, isLoading, refetch } = useQuery({
     queryKey: ["available-donations"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,7 +30,6 @@ export default function AvailableDonations() {
 
       if (error) throw error;
       
-      // Map the database response to match our Donation type
       return data.map(item => ({
         id: item.id,
         donorId: item.donor_id,
@@ -52,6 +51,30 @@ export default function AvailableDonations() {
     },
     enabled: !!currentUser?.id,
   });
+
+  // Subscribe to real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('donation-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'donations',
+          filter: 'status=eq.listed'
+        },
+        () => {
+          // Refetch donations when changes occur
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   return (
     <Layout>
@@ -75,8 +98,6 @@ export default function AvailableDonations() {
                     key={donation.id} 
                     donation={donation}
                     viewType="ngo"
-                    onAction={() => navigate(`/ngo/donation/${donation.id}`)}
-                    actionLabel="View Details"
                   />
                 ))}
               </div>
