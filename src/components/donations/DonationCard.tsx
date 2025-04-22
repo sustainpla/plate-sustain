@@ -1,5 +1,4 @@
 
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, ShoppingBasket, Thermometer } from "lucide-react";
 import { Donation } from "@/lib/types";

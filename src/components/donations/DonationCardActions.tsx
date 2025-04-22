@@ -63,6 +63,11 @@ export default function DonationCardActions({ donation, viewType }: DonationCard
         description: `Donation has been ${newStatus === "reserved" ? "reserved" : "marked as delivered"}`,
       });
 
+      // If it's a reservation, navigate to the my-reservations page
+      if (newStatus === "reserved") {
+        navigate("/ngo/my-reservations");
+      }
+
     } catch (error) {
       console.error("Error updating donation status:", error);
       toast({

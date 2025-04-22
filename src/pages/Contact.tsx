@@ -19,7 +19,6 @@ export default function Contact() {
             <li>Email: <a href="mailto:plate.sustain@gmail.com" className="text-sustainPlate-green hover:underline">plate.sustain@gmail.com</a></li>
             <li>Address: Thapar Institute of eng and tech Patiala</li>
           </ul>
-          <p>Or reach out through our <a href="https://twitter.com/lovable_dev" className="text-sustainPlate-green hover:underline" target="_blank" rel="noopener">Twitter</a>.</p>
         </div>
       </div>
     </Layout>

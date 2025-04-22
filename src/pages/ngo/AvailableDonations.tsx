@@ -55,6 +55,29 @@ export default function AvailableDonations() {
     refetchInterval: 5000, // Refetch every 5 seconds to get updated data
   });
 
+  // Set up real-time subscription
+  useEffect(() => {
+    // Create a realtime subscription to donation changes
+    const channel = supabase
+      .channel('donation-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations'
+        }, 
+        () => {
+          // When any donation changes, refresh the available donations list
+          // The useQuery hook will handle the refetching
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <Layout>
       <div className="container py-8">
