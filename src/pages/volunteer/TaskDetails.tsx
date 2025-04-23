@@ -7,70 +7,76 @@ import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Donation } from "@/lib/types";
+import { AlertCircle, Clock, Loader2, MapPin } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
-import { MapPin, Clock, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function TaskDetails() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const queryClient = useQueryClient();
-
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [updateStatusDialogOpen, setUpdateStatusDialogOpen] = useState(false);
+  
   useEffect(() => {
     if (!currentUser || currentUser.role !== "volunteer") {
       navigate("/login");
     }
   }, [currentUser, navigate]);
 
-  const { data: task, isLoading, refetch } = useQuery({
+  // Fetch the donation details
+  const { data: task, isLoading: isLoadingTask, refetch } = useQuery({
     queryKey: ["task", id],
     queryFn: async () => {
+      if (!id) throw new Error("No task ID provided");
+      
       const { data, error } = await supabase
         .from("donations")
         .select(`
-          id,
-          title,
-          status,
-          pickup_address,
-          pickup_time,
-          volunteer_id,
-          profiles!donations_donor_id_fkey(name, address),
-          profiles!donations_reserved_by_fkey(name, address)
+          *,
+          donor:profiles!donations_donor_id_fkey(name),
+          ngo:profiles!donations_reserved_by_fkey(name, address)
         `)
         .eq("id", id)
         .single();
 
       if (error) throw error;
       
-      const deliveryAddress = data.profiles?.address || "Contact NGO for address";
-      
       return {
         id: data.id,
-        donationId: data.id,
-        donationTitle: data.title,
+        donorId: data.donor_id,
+        donorName: data.donor?.name || "Unknown donor",
+        title: data.title,
+        description: data.description || "",
+        foodType: data.food_type,
+        quantity: data.quantity,
+        expiryDate: data.expiry_date,
+        storageRequirements: data.storage_requirements || "Room temperature",
         pickupAddress: data.pickup_address,
-        deliveryAddress,
+        pickupInstructions: data.pickup_instructions || "",
+        status: data.status as Donation["status"],
+        createdAt: data.created_at || new Date().toISOString(),
+        reservedBy: data.reserved_by || undefined,
+        reservedByName: data.ngo?.name || "Unknown NGO",
+        deliveryAddress: data.ngo?.address || "Please contact the NGO for address details",
         pickupTime: data.pickup_time || new Date().toISOString(),
-        status: data.volunteer_id ? 
-               (data.status === "pickedUp" ? "assigned" : "completed") :
-               "available",
-        volunteerId: data.volunteer_id,
-        volunteerName: currentUser?.name
+        volunteerId: data.volunteer_id || undefined,
+        volunteerName: undefined, // Will be filled in if the volunteer is assigned
       };
     },
     enabled: !!id && !!currentUser?.id,
-    refetchInterval: 3000, // Refetch every 3 seconds
   });
 
-  // Set up real-time subscription for task updates
+  // Real-time updates for this task
   useEffect(() => {
     if (!id) return;
     
-    // Subscribe to changes for this specific task
     const channel = supabase
-      .channel(`task-${id}-updates`)
+      .channel(`task-${id}-changes`)
       .on('postgres_changes', 
         { 
           event: '*', 
@@ -81,172 +87,98 @@ export default function TaskDetails() {
         (payload) => {
           console.log("Real-time update for task:", payload);
           refetch();
+          queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["assigned-tasks"] });
         }
       )
       .subscribe();
 
-    console.log("Subscribed to task updates for task:", id);
-
     return () => {
-      console.log("Unsubscribing from task updates");
       supabase.removeChannel(channel);
     };
-  }, [id, refetch]);
+  }, [id, refetch, queryClient]);
 
-  const handleAssignTask = async () => {
-    if (!currentUser || !task) return;
+  // Assignment function
+  const assignTask = async () => {
+    if (!currentUser?.id || !id) return;
     
-    setIsAssigning(true);
     try {
-      // First check if task is still available
-      const { data: checkData, error: checkError } = await supabase
-        .from("donations")
-        .select("volunteer_id, status")
-        .eq("id", task.id)
-        .single();
-        
-      if (checkError) {
-        console.error("Error checking task availability:", checkError);
-        throw checkError;
-      }
-      
-      if (checkData.volunteer_id) {
-        toast({
-          title: "Task unavailable",
-          description: "This task has already been assigned to another volunteer.",
-          variant: "destructive",
-        });
-        refetch();
-        setIsAssigning(false);
-        return;
-      }
-      
-      // Add a small delay to prevent race conditions
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // If still available, assign it
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("donations")
         .update({
           volunteer_id: currentUser.id,
+          status: "pickedUp"
         })
-        .eq("id", task.id)
-        .is("volunteer_id", null); // Only allow assignment if no volunteer assigned
-      
-      if (error) {
-        console.error("Error assigning task:", error);
-        throw error;
-      }
-      
-      // Verify assignment
-      const { data: verifyData, error: verifyError } = await supabase
-        .from("donations")
-        .select("volunteer_id")
-        .eq("id", task.id)
+        .eq("id", id)
+        .select()
         .single();
         
-      if (verifyError) {
-        console.error("Error verifying assignment:", verifyError);
-        throw verifyError;
-      }
-      
-      if (verifyData.volunteer_id !== currentUser.id) {
-        console.error("Assignment verification failed:", verifyData);
-        throw new Error("Assignment verification failed");
-      }
+      if (error) throw error;
       
       toast({
         title: "Task assigned",
-        description: "You have successfully signed up for this delivery task",
+        description: "You've successfully picked up this delivery task!",
       });
       
-      // Invalidate queries
+      // Refresh all relevant queries
       queryClient.invalidateQueries({ queryKey: ["task", id] });
       queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["assigned-tasks"] });
       
-      refetch();
+      navigate("/volunteer/dashboard");
     } catch (error: any) {
-      console.error("Task assignment error:", error);
+      console.error("Error assigning task:", error);
       toast({
-        title: "Assignment failed",
-        description: "There was an error assigning this task. It may already be assigned.",
-        variant: "destructive",
+        title: "Error assigning task",
+        description: error.message,
+        variant: "destructive"
       });
     } finally {
-      setIsAssigning(false);
+      setAssignDialogOpen(false);
     }
   };
 
-  const handleUpdateStatus = async (newStatus: "pickedUp" | "delivered") => {
-    if (!currentUser || !task) return;
+  // Function to mark a task as delivered (complete)
+  const completeTask = async () => {
+    if (!currentUser?.id || !id) return;
     
-    setIsUpdating(true);
     try {
-      console.log(`Updating task status to ${newStatus} for task:`, task.id);
-      
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("donations")
         .update({
-          status: newStatus,
+          status: "delivered"
         })
-        .eq("id", task.id)
-        .eq("volunteer_id", currentUser.id);
-      
-      if (error) {
-        console.error("Status update error:", error);
-        throw error;
-      }
-      
-      // Verify the status update
-      const { data: verifyData, error: verifyError } = await supabase
-        .from("donations")
-        .select("status")
-        .eq("id", task.id)
+        .eq("id", id)
+        .eq("volunteer_id", currentUser.id)
+        .select()
         .single();
         
-      if (verifyError) {
-        console.error("Status verification error:", verifyError);
-        throw verifyError;
-      }
-      
-      if (verifyData.status !== newStatus) {
-        console.error("Status verification failed:", verifyData);
-        throw new Error("Status update verification failed");
-      }
+      if (error) throw error;
       
       toast({
-        title: "Status updated",
-        description: newStatus === "pickedUp" 
-          ? "Donation has been marked as picked up" 
-          : "Delivery has been completed successfully",
+        title: "Delivery completed",
+        description: "Thank you for completing this delivery!",
       });
       
-      // Invalidate queries
+      // Refresh all relevant queries
       queryClient.invalidateQueries({ queryKey: ["task", id] });
       queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["assigned-tasks"] });
       
-      refetch();
+      navigate("/volunteer/dashboard");
     } catch (error: any) {
-      console.error("Status update error:", error);
+      console.error("Error completing task:", error);
       toast({
-        title: "Update failed",
-        description: "There was an error updating the status.",
-        variant: "destructive",
+        title: "Error completing task",
+        description: error.message,
+        variant: "destructive"
       });
     } finally {
-      setIsUpdating(false);
+      setUpdateStatusDialogOpen(false);
     }
   };
 
-  const handleRefresh = () => {
-    refetch();
-    toast({
-      title: "Refreshing task",
-      description: "Getting the latest task details...",
-    });
-  };
-
-  if (isLoading) {
+  if (isLoadingTask) {
     return (
       <Layout>
         <div className="container py-8 flex justify-center items-center">
@@ -279,142 +211,173 @@ export default function TaskDetails() {
     );
   }
 
-  const pickupTime = new Date(task.pickupTime);
   const isAssigned = task.volunteerId === currentUser?.id;
+  const canComplete = isAssigned && task.status === "pickedUp";
+  const isCompleted = task.status === "delivered";
+  const canAssign = !isAssigned && task.status === "reserved" && !task.volunteerId;
+  
+  const formatPickupTime = (dateTimeString: string) => {
+    return new Date(dateTimeString).toLocaleString();
+  };
 
   return (
     <Layout>
       <div className="container py-8">
-        <div className="flex justify-between items-center mb-6">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/volunteer/dashboard")}
-          >
-            Back to Dashboard
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRefresh}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => navigate("/volunteer/dashboard")}
+          className="mb-6"
+        >
+          Back to Dashboard
+        </Button>
         
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
-                <CardTitle className="text-2xl">{task.donationTitle}</CardTitle>
-                <div className="text-sm text-muted-foreground mt-1">
-                  {isAssigned ? "You are assigned to this task" : "This task needs a volunteer"}
-                </div>
+                <CardTitle className="text-2xl">{task.title}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Food donation by {task.donorName}
+                </p>
               </div>
-              <div>
-                <span className={`status-badge ${
-                  task.status === "available" ? "status-listed" : 
-                  task.status === "assigned" ? "status-pickedUp" :
-                  "status-delivered"
-                }`}>
-                  {task.status === "available" ? "Available" : 
-                   task.status === "assigned" ? "In Progress" : 
-                   "Completed"}
-                </span>
-              </div>
+              <Badge 
+                className={
+                  task.status === "reserved" ? "bg-blue-100 text-blue-800" :
+                  task.status === "pickedUp" ? "bg-yellow-100 text-yellow-800" :
+                  "bg-green-100 text-green-800"
+                }
+              >
+                {task.status === "reserved" ? "Available" : 
+                 task.status === "pickedUp" ? "In Progress" : 
+                 "Delivered"}
+              </Badge>
             </div>
           </CardHeader>
+          
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Pickup Details</h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-sustainPlate-status-listed mt-1" />
-                    <div>
-                      <p className="font-medium">Pickup Address</p>
-                      <p>{task.pickupAddress}</p>
-                    </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Delivery Information</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-slate-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Pickup Time</p>
+                    <p>{formatPickupTime(task.pickupTime)}</p>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Clock className="h-5 w-5 text-sustainPlate-orange mt-1" />
-                    <div>
-                      <p className="font-medium">Pickup Time</p>
-                      <p>{pickupTime.toLocaleString()}</p>
-                    </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-blue-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Pickup Location</p>
+                    <p>{task.pickupAddress}</p>
+                    {task.pickupInstructions && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {task.pickupInstructions}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-green-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Delivery Location</p>
+                    <p>{task.deliveryAddress}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Deliver to: {task.reservedByName}
+                    </p>
                   </div>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Delivery Details</h3>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-sustainPlate-status-delivered mt-1" />
-                    <div>
-                      <p className="font-medium">Delivery Address</p>
-                      <p>{task.deliveryAddress}</p>
-                    </div>
-                  </div>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Food Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="font-medium">Type</p>
+                  <p>{task.foodType}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Quantity</p>
+                  <p>{task.quantity}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Storage</p>
+                  <p>{task.storageRequirements}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Expires</p>
+                  <p>{new Date(task.expiryDate).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
           </CardContent>
           
           <CardFooter>
-            {!isAssigned && task.status === "available" && (
+            {canAssign && (
               <Button 
-                onClick={handleAssignTask}
-                disabled={isAssigning}
-                className="w-full md:w-auto bg-sustainPlate-green hover:bg-sustainPlate-green-dark"
+                onClick={() => setAssignDialogOpen(true)} 
+                className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark w-full"
               >
-                {isAssigning ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Assigning...
-                  </>
-                ) : (
-                  "Sign Up for This Task"
-                )}
+                Assign Me to This Task
               </Button>
             )}
             
-            {isAssigned && task.status === "available" && (
+            {canComplete && (
               <Button 
-                onClick={() => handleUpdateStatus("pickedUp")}
-                disabled={isUpdating}
-                className="w-full md:w-auto"
+                onClick={() => setUpdateStatusDialogOpen(true)} 
+                className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark w-full"
               >
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Mark as Picked Up"
-                )}
+                Mark as Delivered
               </Button>
             )}
             
-            {isAssigned && task.status === "assigned" && (
-              <Button 
-                onClick={() => handleUpdateStatus("delivered")}
-                disabled={isUpdating}
-                className="w-full md:w-auto"
-              >
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Complete Delivery"
-                )}
+            {isCompleted && (
+              <Button disabled className="w-full">
+                Task Completed
               </Button>
             )}
           </CardFooter>
         </Card>
       </div>
+      
+      {/* Assignment confirmation dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Task Assignment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to assign yourself to this delivery task? You will be responsible for picking up the food from {task.donorName} and delivering it to {task.reservedByName}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+            <Button onClick={assignTask} className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark">
+              Confirm Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Completion confirmation dialog */}
+      <Dialog open={updateStatusDialogOpen} onOpenChange={setUpdateStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delivery Completion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this task as delivered? This will complete the task and notify both the donor and the NGO.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateStatusDialogOpen(false)}>Cancel</Button>
+            <Button onClick={completeTask} className="bg-sustainPlate-green hover:bg-sustainPlate-green-dark">
+              Confirm Delivery
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

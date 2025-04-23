@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -28,13 +29,18 @@ export default function VolunteerDashboard() {
           pickup_address,
           pickup_time,
           status,
-          profiles!donations_donor_id_fkey(name, address),
+          profiles!donations_donor_id_fkey(name),
           profiles!donations_reserved_by_fkey(name, address)
         `)
         .eq("status", "reserved")
         .is("volunteer_id", null);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching available tasks:", error);
+        throw error;
+      }
+      
+      console.log("Available tasks data:", data);
       
       return data?.map(item => ({
         id: item.id,
@@ -63,12 +69,17 @@ export default function VolunteerDashboard() {
           pickup_address,
           pickup_time,
           status,
-          profiles!donations_donor_id_fkey(name, address),
+          profiles!donations_donor_id_fkey(name),
           profiles!donations_reserved_by_fkey(name, address)
         `)
         .eq("volunteer_id", currentUser?.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching assigned tasks:", error);
+        throw error;
+      }
+      
+      console.log("Assigned tasks data:", data);
       
       return data?.map(item => ({
         id: item.id,
@@ -77,7 +88,9 @@ export default function VolunteerDashboard() {
         pickupAddress: item.pickup_address,
         deliveryAddress: item.profiles?.address || "Contact NGO for address",
         pickupTime: item.pickup_time || new Date().toISOString(),
-        status: item.status === "pickedUp" ? "assigned" as const : item.status as "assigned" | "completed",
+        status: item.status === "pickedUp" ? "pickedUp" as const : 
+               item.status === "delivered" ? "completed" as const : 
+               "assigned" as const,
         volunteerId: currentUser?.id,
         volunteerName: currentUser?.name
       }));
@@ -89,30 +102,49 @@ export default function VolunteerDashboard() {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const channel = supabase
-      .channel('volunteer-dashboard-changes')
+    // Subscribe to changes for available tasks
+    const availableChannel = supabase
+      .channel('available-tasks-changes')
       .on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
           table: 'donations',
+          filter: 'status=eq.reserved'
         }, 
-        () => {
-          // Refetch both queries when changes occur
+        (payload) => {
+          console.log("Real-time update for available tasks:", payload);
           queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to changes for assigned tasks
+    const assignedChannel = supabase
+      .channel('assigned-tasks-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+          filter: `volunteer_id=eq.${currentUser.id}` 
+        }, 
+        (payload) => {
+          console.log("Real-time update for assigned tasks:", payload);
           queryClient.invalidateQueries({ queryKey: ["assigned-tasks", currentUser.id] });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(availableChannel);
+      supabase.removeChannel(assignedChannel);
     };
   }, [currentUser?.id, queryClient]);
 
   const stats = {
     total: assignedTasks?.length || 0,
-    upcoming: assignedTasks?.filter(t => t.status === "assigned").length || 0,
+    upcoming: assignedTasks?.filter(t => t.status === "assigned" || t.status === "pickedUp").length || 0,
     completed: assignedTasks?.filter(t => t.status === "completed").length || 0,
   };
 

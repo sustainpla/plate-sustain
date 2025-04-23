@@ -8,21 +8,13 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import TaskCard from "@/components/volunteers/TaskCard";
 import { VolunteerTask } from "@/lib/types";
-import { Loader2, Filter, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 
 export default function AvailableTasks() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [filterDistance, setFilterDistance] = useState<string>("all");
   const queryClient = useQueryClient();
   
   useEffect(() => {
@@ -51,6 +43,11 @@ export default function AvailableTasks() {
 
       if (error) {
         console.error("Error fetching available tasks:", error);
+        toast({
+          title: "Error fetching tasks",
+          description: error.message,
+          variant: "destructive"
+        });
         throw error;
       }
       
@@ -62,9 +59,9 @@ export default function AvailableTasks() {
         donationId: item.id,
         donationTitle: item.title,
         pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles ? item.profiles.address || "Contact NGO for address" : "Contact NGO for address",
+        deliveryAddress: item.profiles.address || "Contact NGO for address",
         pickupTime: item.pickup_time || new Date().toISOString(),
-        status: "available" as const, // Use const assertion to make TypeScript happy
+        status: "available" as const,
         volunteerId: undefined,
         volunteerName: undefined
       })) as VolunteerTask[];
@@ -87,6 +84,8 @@ export default function AvailableTasks() {
 
   // Set up real-time subscription for task updates
   useEffect(() => {
+    if (!currentUser?.id) return;
+    
     // Create a realtime subscription to donation changes
     const channel = supabase
       .channel('volunteer-task-updates')
@@ -95,7 +94,7 @@ export default function AvailableTasks() {
           event: '*', 
           schema: 'public', 
           table: 'donations',
-          filter: 'volunteer_id=is.null' 
+          filter: 'status=eq.reserved' 
         }, 
         (payload) => {
           console.log("Real-time update for volunteer tasks:", payload);
@@ -111,7 +110,7 @@ export default function AvailableTasks() {
       console.log("Unsubscribing from volunteer task updates");
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [currentUser?.id, queryClient]);
 
   return (
     <Layout>
