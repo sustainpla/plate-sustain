@@ -5,15 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
@@ -61,6 +53,8 @@ export default function DonationForm({ onDonationCreated }: DonationFormProps) {
 
     setIsSubmitting(true);
     try {
+      console.log("Submitting donation:", values);
+      
       // Save donation to Supabase
       const { data, error } = await supabase
         .from("donations")
@@ -79,7 +73,12 @@ export default function DonationForm({ onDonationCreated }: DonationFormProps) {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
+      
+      console.log("Donation created successfully:", data);
       
       toast({
         title: "Donation created",

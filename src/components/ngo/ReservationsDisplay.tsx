@@ -17,5 +17,16 @@ export default function ReservationsDisplay({ reservations, isLoading }: Reserva
     );
   }
 
-  return <NGOReservationTabs reservations={reservations || []} />;
+  if (!reservations || reservations.length === 0) {
+    return (
+      <div className="text-center py-12 border rounded-lg bg-slate-50">
+        <p className="text-muted-foreground">You haven't reserved any donations yet.</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Check the available donations page to find donations to reserve.
+        </p>
+      </div>
+    );
+  }
+
+  return <NGOReservationTabs reservations={reservations} />;
 }

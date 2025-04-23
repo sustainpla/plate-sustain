@@ -25,8 +25,9 @@ export function useMyReservations(userId: string | undefined) {
         throw error;
       }
       
-      console.log(`Found ${data.length} reservations`);
+      console.log(`Found ${data.length} reservations for user ${userId}`);
       
+      // Map the database response to match our Donation type
       return data.map(item => ({
         id: item.id,
         donorId: item.donor_id,
@@ -48,5 +49,6 @@ export function useMyReservations(userId: string | undefined) {
     },
     enabled: !!userId,
     refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+    staleTime: 3000 // Consider data stale after 3 seconds
   });
 }

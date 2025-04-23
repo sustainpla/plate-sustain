@@ -26,6 +26,8 @@ export default function ReservationButton({ donation, currentUser }: Reservation
     setIsReserving(true);
     
     try {
+      console.log("Starting reservation process for donation:", donation.id);
+      
       // First check if the donation is still available
       const { data: checkData, error: checkError } = await supabase
         .from("donations")
@@ -35,7 +37,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       
       if (checkError) {
         console.error("Error checking donation status:", checkError);
-        throw checkError;
+        throw new Error("Could not check donation availability");
       }
       
       // If already reserved, show an error
@@ -49,7 +51,8 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         return;
       }
       
-      console.log("Attempting to reserve donation:", donation.id, "for user:", currentUser.id);
+      console.log("Donation is available. Proceeding with reservation");
+      console.log("User ID:", currentUser.id);
       
       // If still available, reserve it
       const { data, error } = await supabase
@@ -59,15 +62,18 @@ export default function ReservationButton({ donation, currentUser }: Reservation
           reserved_by: currentUser.id,
         })
         .eq("id", donation.id)
-        .select()
-        .single();
+        .select();
       
       if (error) {
         console.error("Reservation update error:", error);
-        throw error;
+        throw new Error("Failed to update reservation status");
       }
       
-      console.log("Reservation successful, database response:", data);
+      console.log("Reservation update response:", data);
+      
+      if (!data || data.length === 0) {
+        throw new Error("No data returned from reservation update");
+      }
       
       // Set success state to show confirmation before redirect
       setReservationSuccess(true);
@@ -86,7 +92,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       // Wait a bit to show success state before navigating
       setTimeout(() => {
         navigate("/ngo/my-reservations");
-      }, 2000);
+      }, 1500);
     } catch (error) {
       console.error("Reservation error:", error);
       toast({
