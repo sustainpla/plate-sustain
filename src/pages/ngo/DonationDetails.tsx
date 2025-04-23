@@ -29,13 +29,20 @@ export default function DonationDetails() {
   const { data: donation, isLoading, refetch } = useQuery({
     queryKey: ["donation", id],
     queryFn: async () => {
+      console.log("Fetching donation details for ID:", id);
+      
       const { data, error } = await supabase
         .from("donations")
         .select("*, profiles!donations_donor_id_fkey(name)")
         .eq("id", id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching donation:", error);
+        throw error;
+      }
+      
+      console.log("Donation data retrieved:", data);
       
       return {
         id: data.id,
@@ -53,6 +60,7 @@ export default function DonationDetails() {
         createdAt: data.created_at || new Date().toISOString(),
         reservedBy: data.reserved_by || undefined,
         pickupTime: data.pickup_time || undefined,
+        volunteerId: data.volunteer_id || undefined,
       };
     },
     enabled: !!id && !!currentUser?.id,
@@ -72,12 +80,14 @@ export default function DonationDetails() {
           table: 'donations',
           filter: `id=eq.${id}`
         }, 
-        () => {
+        (payload) => {
+          console.log("Real-time update for donation:", payload);
           // When the donation changes, refetch it
           refetch();
           // Also invalidate the available donations and my reservations queries
           queryClient.invalidateQueries({ queryKey: ["available-donations"] });
           queryClient.invalidateQueries({ queryKey: ["my-reservations"] });
+          queryClient.invalidateQueries({ queryKey: ["donation-updates"] });
         }
       )
       .subscribe();

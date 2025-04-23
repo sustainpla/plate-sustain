@@ -20,10 +20,9 @@ export function useDonationUpdates(userId: string, type: "donor" | "ngo" = "dono
           .from('donations')
           .select(`
             *,
-            reserved_by:profiles!donations_reserved_by_fkey(name),
-            volunteer:profiles!donations_volunteer_id_fkey(name),
-            donor:profiles!donations_donor_id_fkey(name)
-          `)
+            donor:profiles!donations_donor_id_fkey(name),
+            reserved_ngo:profiles!donations_reserved_by_fkey(name)
+          `);
           
         // Filter based on type (donor or ngo)
         if (type === "donor") {
@@ -57,10 +56,10 @@ export function useDonationUpdates(userId: string, type: "donor" | "ngo" = "dono
             status: item.status as DonationStatus,
             createdAt: item.created_at || new Date().toISOString(),
             reservedBy: item.reserved_by,
-            reservedByName: item.reserved_by?.name,
+            reservedByName: item.reserved_ngo?.name,
             pickupTime: item.pickup_time,
             volunteerId: item.volunteer_id,
-            volunteerName: item.volunteer?.name,
+            volunteerName: undefined,
           }));
           
           setDonations(formattedDonations);

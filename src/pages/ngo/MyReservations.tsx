@@ -5,10 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
-import DonationCard from "@/components/donations/DonationCard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
 import { Donation } from "@/lib/types";
+import { Loader2 } from "lucide-react";
+import NGOReservationTabs from "@/components/ngo/NGOReservationTabs";
 
 export default function MyReservations() {
   const { currentUser } = useAuth();
@@ -21,18 +21,27 @@ export default function MyReservations() {
   }, [currentUser, navigate]);
 
   const { data: reservations, isLoading } = useQuery({
-    queryKey: ["my-reservations"],
+    queryKey: ["my-reservations", currentUser?.id],
     queryFn: async () => {
+      if (!currentUser?.id) throw new Error("User not authenticated");
+      
+      console.log("Fetching reservations for user:", currentUser.id);
+      
       const { data, error } = await supabase
         .from("donations")
         .select(`
           *,
           profiles!donations_donor_id_fkey(name)
         `)
-        .eq("reserved_by", currentUser?.id)
+        .eq("reserved_by", currentUser.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching reservations:", error);
+        throw error;
+      }
+      
+      console.log(`Found ${data.length} reservations`);
       
       return data.map(item => ({
         id: item.id,
@@ -54,7 +63,7 @@ export default function MyReservations() {
       }));
     },
     enabled: !!currentUser?.id,
-    refetchInterval: 5000, // Refetch every 5 seconds
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
   });
 
   return (
@@ -62,82 +71,13 @@ export default function MyReservations() {
       <div className="container py-8">
         <h1 className="text-3xl font-bold tracking-tight mb-6">My Reservations</h1>
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Food Reservations</CardTitle>
-            <CardDescription>
-              Track the status of your food reservations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">Loading...</div>
-            ) : reservations?.length ? (
-              <Tabs defaultValue="all">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="reserved">Pending Pickup</TabsTrigger>
-                  <TabsTrigger value="pickedUp">In Transit</TabsTrigger>
-                  <TabsTrigger value="delivered">Received</TabsTrigger>
-                </TabsList>
-                <TabsContent value="all">
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reservations.map((donation) => (
-                      <DonationCard 
-                        key={donation.id} 
-                        donation={donation}
-                        viewType="ngo"
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="reserved">
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reservations
-                      .filter(d => d.status === "reserved")
-                      .map((donation) => (
-                        <DonationCard 
-                          key={donation.id} 
-                          donation={donation}
-                          viewType="ngo"
-                        />
-                      ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="pickedUp">
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reservations
-                      .filter(d => d.status === "pickedUp")
-                      .map((donation) => (
-                        <DonationCard 
-                          key={donation.id} 
-                          donation={donation}
-                          viewType="ngo"
-                        />
-                      ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="delivered">
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reservations
-                      .filter(d => d.status === "delivered")
-                      .map((donation) => (
-                        <DonationCard 
-                          key={donation.id} 
-                          donation={donation}
-                          viewType="ngo"
-                        />
-                      ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">You haven't reserved any donations yet</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-sustainPlate-green" />
+          </div>
+        ) : (
+          <NGOReservationTabs reservations={reservations || []} />
+        )}
       </div>
     </Layout>
   );

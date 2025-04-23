@@ -32,7 +32,10 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         .eq("id", donation.id)
         .single();
       
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error("Error checking donation status:", checkError);
+        throw checkError;
+      }
       
       // If already reserved, show an error
       if (checkData.status !== "listed" || checkData.reserved_by) {
@@ -54,7 +57,12 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         })
         .eq("id", donation.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
+      
+      console.log("Donation successfully reserved:", donation.id);
       
       // Set success state to show confirmation before redirect
       setReservationSuccess(true);
@@ -81,10 +89,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         description: "There was an error reserving this donation. It may already be reserved.",
         variant: "destructive",
       });
-    } finally {
-      if (!reservationSuccess) {
-        setIsReserving(false);
-      }
+      setIsReserving(false);
     }
   };
 
