@@ -63,8 +63,13 @@ export function useDonationUpdates(userId: string, type: "donor" | "ngo" = "dono
           }));
           
           setDonations(formattedDonations);
-          // Update the query cache
-          queryClient.setQueryData(["donation-updates", userId, type], formattedDonations);
+          
+          // Update the query cache with this fresh data
+          if (type === "ngo") {
+            queryClient.setQueryData(["my-reservations", userId], formattedDonations);
+          } else {
+            queryClient.setQueryData(["donation-updates", userId, type], formattedDonations);
+          }
         }
       } catch (err) {
         console.error("Exception fetching donations:", err);
