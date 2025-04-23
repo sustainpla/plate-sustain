@@ -135,16 +135,22 @@ export function useVolunteerTasks(userId: string | undefined) {
         (payload) => {
           console.log("Real-time update for volunteer tasks:", payload);
           
+          // Check if payload has new data with valid structure
+          const newData = payload.new as Record<string, any> | null;
+          const oldData = payload.old as Record<string, any> | null;
+          
           // Check if this is a change to a task assigned to this volunteer
-          if (payload.new && payload.new.volunteer_id === userId) {
+          if (newData && 'volunteer_id' in newData && newData.volunteer_id === userId) {
             queryClient.invalidateQueries({ queryKey: ["assigned-tasks", userId] });
           } 
           // Or if this is a change to an available task
-          else if (payload.new && payload.new.status === "reserved" && !payload.new.volunteer_id) {
+          else if (newData && 'status' in newData && newData.status === "reserved" && 
+                  (!('volunteer_id' in newData) || newData.volunteer_id === null)) {
             queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
           }
           // Or if this is a change from available to assigned
-          else if (payload.old && payload.old.status === "reserved" && !payload.old.volunteer_id) {
+          else if (oldData && 'status' in oldData && oldData.status === "reserved" && 
+                  (!('volunteer_id' in oldData) || oldData.volunteer_id === null)) {
             queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
           }
         }
