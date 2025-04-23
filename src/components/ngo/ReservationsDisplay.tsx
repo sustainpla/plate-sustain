@@ -5,6 +5,9 @@ import NGOReservationTabs from "@/components/ngo/NGOReservationTabs";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface ReservationsDisplayProps {
   reservations: Donation[] | undefined;
@@ -23,6 +26,16 @@ export default function ReservationsDisplay({ reservations, isLoading }: Reserva
     }
   }, [currentUser?.id, queryClient]);
 
+  const handleManualRefresh = () => {
+    if (currentUser?.id) {
+      queryClient.invalidateQueries({ queryKey: ["my-reservations", currentUser.id] });
+      toast({
+        title: "Refreshing",
+        description: "Updating your reservations list...",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -38,10 +51,33 @@ export default function ReservationsDisplay({ reservations, isLoading }: Reserva
         <p className="text-sm text-muted-foreground mt-2">
           Check the available donations page to find donations to reserve.
         </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleManualRefresh} 
+          className="mt-4"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
     );
   }
 
   console.log("ReservationsDisplay: Rendering reservations:", reservations.length);
-  return <NGOReservationTabs reservations={reservations} />;
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleManualRefresh}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+      <NGOReservationTabs reservations={reservations} />
+    </div>
+  );
 }

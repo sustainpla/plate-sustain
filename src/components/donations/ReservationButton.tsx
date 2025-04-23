@@ -64,14 +64,19 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       
       console.log("Donation is available. Proceeding with reservation");
       
-      // If still available, reserve it
+      // Add a small timeout to ensure database transactions are consistent
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // If still available, reserve it with explicit transaction
       const { error: updateError } = await supabase
         .from("donations")
         .update({
           status: "reserved",
           reserved_by: currentUser.id
         })
-        .eq("id", donation.id);
+        .eq("id", donation.id)
+        .eq("status", "listed")  // Only update if status is still "listed"
+        .is("reserved_by", null); // Only update if reserved_by is still null
       
       if (updateError) {
         console.error("Reservation update error:", updateError);
@@ -89,8 +94,13 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         
       console.log("Verification check response:", verifyData, verifyError);
         
-      if (verifyError || !verifyData || verifyData.reserved_by !== currentUser.id) {
-        console.error("Verification failed:", verifyError || "Reserved by doesn't match current user");
+      if (verifyError) {
+        console.error("Verification error:", verifyError);
+        throw new Error(`Verification failed: ${verifyError.message}`);
+      }
+        
+      if (!verifyData || verifyData.reserved_by !== currentUser.id) {
+        console.error("Verification failed: Reserved by doesn't match current user");
         throw new Error("Reservation verification failed");
       }
       

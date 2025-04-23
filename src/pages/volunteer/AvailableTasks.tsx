@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,18 +8,29 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import TaskCard from "@/components/volunteers/TaskCard";
 import { VolunteerTask } from "@/lib/types";
+import { Loader2, Filter, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
 
 export default function AvailableTasks() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-
+  const [filterDistance, setFilterDistance] = useState<string>("all");
+  
   useEffect(() => {
     if (!currentUser || currentUser.role !== "volunteer") {
       navigate("/login");
     }
   }, [currentUser, navigate]);
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading, refetch } = useQuery({
     queryKey: ["available-tasks"],
     queryFn: async () => {
       // Get all reserved donations that don't have a volunteer assigned
@@ -52,7 +63,19 @@ export default function AvailableTasks() {
       })) as VolunteerTask[];
     },
     enabled: !!currentUser?.id,
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
+
+  const handleRefresh = () => {
+    refetch();
+    toast({
+      title: "Refreshing tasks",
+      description: "Getting the latest available tasks...",
+    });
+  };
+
+  // For demo purposes, filter tasks - in a real app we'd filter by geolocation
+  const filteredTasks = tasks || [];
 
   return (
     <Layout>
@@ -61,17 +84,34 @@ export default function AvailableTasks() {
         
         <Card>
           <CardHeader>
-            <CardTitle>Volunteer Opportunities</CardTitle>
-            <CardDescription>
-              Help deliver food from donors to NGOs in need
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle>Volunteer Opportunities</CardTitle>
+                <CardDescription>
+                  Help deliver food from donors to NGOs in need
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8">Loading...</div>
-            ) : tasks?.length ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p>Loading available tasks...</p>
+              </div>
+            ) : filteredTasks.length ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                   <TaskCard 
                     key={task.id} 
                     task={task}
@@ -83,6 +123,15 @@ export default function AvailableTasks() {
             ) : (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No available tasks at the moment</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  className="mt-4"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Check Again
+                </Button>
               </div>
             )}
           </CardContent>

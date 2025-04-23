@@ -1,14 +1,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { MapPin, Clock, Loader2, AlertCircle } from "lucide-react";
+import { MapPin, Clock, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 
 export default function TaskDetails() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +16,7 @@ export default function TaskDetails() {
   const navigate = useNavigate();
   const [isAssigning, setIsAssigning] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "volunteer") {
@@ -60,6 +61,7 @@ export default function TaskDetails() {
       };
     },
     enabled: !!id && !!currentUser?.id,
+    refetchInterval: 3000, // Refetch every 3 seconds
   });
 
   const handleAssignTask = async () => {
@@ -67,6 +69,27 @@ export default function TaskDetails() {
     
     setIsAssigning(true);
     try {
+      // First check if task is still available
+      const { data: checkData, error: checkError } = await supabase
+        .from("donations")
+        .select("volunteer_id")
+        .eq("id", task.id)
+        .single();
+        
+      if (checkError) throw checkError;
+      
+      if (checkData.volunteer_id) {
+        toast({
+          title: "Task unavailable",
+          description: "This task has already been assigned to another volunteer.",
+          variant: "destructive",
+        });
+        refetch();
+        setIsAssigning(false);
+        return;
+      }
+      
+      // If still available, assign it
       const { error } = await supabase
         .from("donations")
         .update({
@@ -77,10 +100,27 @@ export default function TaskDetails() {
       
       if (error) throw error;
       
+      // Verify assignment
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("donations")
+        .select("volunteer_id")
+        .eq("id", task.id)
+        .single();
+        
+      if (verifyError) throw verifyError;
+      
+      if (verifyData.volunteer_id !== currentUser.id) {
+        throw new Error("Assignment verification failed");
+      }
+      
       toast({
         title: "Task assigned",
         description: "You have successfully signed up for this delivery task",
       });
+      
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["task", id] });
+      queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
       
       refetch();
     } catch (error) {
@@ -117,6 +157,10 @@ export default function TaskDetails() {
           : "Delivery has been completed successfully",
       });
       
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["task", id] });
+      queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+      
       refetch();
     } catch (error) {
       toast({
@@ -128,6 +172,14 @@ export default function TaskDetails() {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleRefresh = () => {
+    refetch();
+    toast({
+      title: "Refreshing task",
+      description: "Getting the latest task details...",
+    });
   };
 
   if (isLoading) {
@@ -169,13 +221,22 @@ export default function TaskDetails() {
   return (
     <Layout>
       <div className="container py-8">
-        <Button
-          variant="outline"
-          onClick={() => navigate("/volunteer/dashboard")}
-          className="mb-6"
-        >
-          Back to Dashboard
-        </Button>
+        <div className="flex justify-between items-center mb-6">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/volunteer/dashboard")}
+          >
+            Back to Dashboard
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
         
         <Card>
           <CardHeader>
