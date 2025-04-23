@@ -23,8 +23,8 @@ export function useVolunteerTasks(userId: string | undefined) {
             pickup_address,
             pickup_time,
             status,
-            profiles!donations_donor_id_fkey(name),
-            profiles!donations_reserved_by_fkey(name, address)
+            donor:profiles!donations_donor_id_fkey(name),
+            ngo:profiles!donations_reserved_by_fkey(name, address)
           `)
           .eq("status", "reserved")
           .is("volunteer_id", null);
@@ -46,7 +46,7 @@ export function useVolunteerTasks(userId: string | undefined) {
           donationId: item.id,
           donationTitle: item.title,
           pickupAddress: item.pickup_address,
-          deliveryAddress: item.profiles?.address || "Contact NGO for address",
+          deliveryAddress: item.ngo?.address || "Contact NGO for address",
           pickupTime: item.pickup_time || new Date().toISOString(),
           status: "available" as const,
           volunteerId: undefined,
@@ -78,8 +78,8 @@ export function useVolunteerTasks(userId: string | undefined) {
             pickup_address,
             pickup_time,
             status,
-            profiles!donations_donor_id_fkey(name),
-            profiles!donations_reserved_by_fkey(name, address)
+            donor:profiles!donations_donor_id_fkey(name),
+            ngo:profiles!donations_reserved_by_fkey(name, address)
           `)
           .eq("volunteer_id", userId);
 
@@ -100,11 +100,11 @@ export function useVolunteerTasks(userId: string | undefined) {
           donationId: item.id,
           donationTitle: item.title,
           pickupAddress: item.pickup_address,
-          deliveryAddress: item.profiles?.address || "Contact NGO for address",
+          deliveryAddress: item.ngo?.address || "Contact NGO for address",
           pickupTime: item.pickup_time || new Date().toISOString(),
           status: item.status === "pickedUp" ? "pickedUp" as const : 
-                item.status === "delivered" ? "completed" as const : 
-                "assigned" as const,
+                 item.status === "delivered" ? "completed" as const : 
+                 "assigned" as const,
           volunteerId: userId,
           volunteerName: undefined
         })) as VolunteerTask[];

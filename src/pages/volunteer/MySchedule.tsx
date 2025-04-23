@@ -1,17 +1,15 @@
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskCard from "@/components/volunteers/TaskCard";
-import { VolunteerTask } from "@/lib/types";
-import { Loader2, Calendar, RefreshCw } from "lucide-react";
+import { Calendar, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { useVolunteerTasks } from "@/hooks/useVolunteerTasks";
 
 export default function MySchedule() {
   const { currentUser } = useAuth();
@@ -23,61 +21,14 @@ export default function MySchedule() {
     }
   }, [currentUser, navigate]);
 
-  // Fetch volunteer's assigned tasks
-  const { data: assignedTasks, isLoading, refetch } = useQuery({
-    queryKey: ["volunteer-tasks", currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser) throw new Error("User not authenticated");
-      
-      console.log("Fetching assigned tasks for volunteer:", currentUser.id);
-      
-      const { data, error } = await supabase
-        .from("donations")
-        .select(`
-          id,
-          title,
-          pickup_address,
-          pickup_time,
-          status,
-          profiles!donations_donor_id_fkey(name, address),
-          profiles!donations_reserved_by_fkey(name, address)
-        `)
-        .eq("volunteer_id", currentUser.id)
-        .order("pickup_time", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching volunteer tasks:", error);
-        toast({
-          title: "Error fetching assigned tasks",
-          description: "Could not load your tasks. Please refresh the page.",
-          variant: "destructive",
-        });
-        throw error;
-      }
-      
-      console.log(`Found ${data?.length || 0} tasks for volunteer ${currentUser.id}:`, data);
-      
-      if (!data) return [];
-      
-      // Map the database response to match our VolunteerTask type
-      return data.map(item => ({
-        id: item.id,
-        donationId: item.id,
-        donationTitle: item.title,
-        pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles?.address || "Contact NGO for address",
-        pickupTime: item.pickup_time || new Date().toISOString(),
-        status: "assigned" as const,
-        volunteerId: currentUser.id,
-        volunteerName: currentUser.name,
-      })) as VolunteerTask[];
-    },
-    enabled: !!currentUser?.id,
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
+  const { 
+    assignedTasks, 
+    isLoadingAssigned, 
+    refetchAssigned 
+  } = useVolunteerTasks(currentUser?.id);
 
   const handleRefresh = () => {
-    refetch();
+    refetchAssigned();
     toast({
       title: "Refreshing schedule",
       description: "Getting the latest tasks...",
@@ -107,7 +58,7 @@ export default function MySchedule() {
             </Button>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoadingAssigned ? (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                 <p>Loading your schedule...</p>

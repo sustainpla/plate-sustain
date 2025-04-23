@@ -8,139 +8,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import TaskCard from "@/components/volunteers/TaskCard";
 import { Search, ChevronRight, Calendar, Clock, CheckCircle } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { useVolunteerTasks } from "@/hooks/useVolunteerTasks";
 
 export default function VolunteerDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  // Fetch available tasks (reserved donations without volunteer)
-  const { data: availableTasks, isLoading: loadingAvailable } = useQuery({
-    queryKey: ["available-tasks"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("donations")
-        .select(`
-          id,
-          title,
-          pickup_address,
-          pickup_time,
-          status,
-          profiles!donations_donor_id_fkey(name),
-          profiles!donations_reserved_by_fkey(name, address)
-        `)
-        .eq("status", "reserved")
-        .is("volunteer_id", null);
-
-      if (error) {
-        console.error("Error fetching available tasks:", error);
-        throw error;
-      }
-      
-      console.log("Available tasks data:", data);
-      
-      return data?.map(item => ({
-        id: item.id,
-        donationId: item.id,
-        donationTitle: item.title,
-        pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles?.address || "Contact NGO for address",
-        pickupTime: item.pickup_time || new Date().toISOString(),
-        status: "available" as const,
-        volunteerId: undefined,
-        volunteerName: undefined
-      }));
-    },
-    enabled: !!currentUser?.id,
-  });
-
-  // Fetch assigned tasks
-  const { data: assignedTasks, isLoading: loadingAssigned } = useQuery({
-    queryKey: ["assigned-tasks", currentUser?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("donations")
-        .select(`
-          id,
-          title,
-          pickup_address,
-          pickup_time,
-          status,
-          profiles!donations_donor_id_fkey(name),
-          profiles!donations_reserved_by_fkey(name, address)
-        `)
-        .eq("volunteer_id", currentUser?.id);
-
-      if (error) {
-        console.error("Error fetching assigned tasks:", error);
-        throw error;
-      }
-      
-      console.log("Assigned tasks data:", data);
-      
-      return data?.map(item => ({
-        id: item.id,
-        donationId: item.id,
-        donationTitle: item.title,
-        pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles?.address || "Contact NGO for address",
-        pickupTime: item.pickup_time || new Date().toISOString(),
-        status: item.status === "pickedUp" ? "pickedUp" as const : 
-               item.status === "delivered" ? "completed" as const : 
-               "assigned" as const,
-        volunteerId: currentUser?.id,
-        volunteerName: currentUser?.name
-      }));
-    },
-    enabled: !!currentUser?.id,
-  });
-
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!currentUser?.id) return;
-
-    // Subscribe to changes for available tasks
-    const availableChannel = supabase
-      .channel('available-tasks-changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'donations',
-          filter: 'status=eq.reserved'
-        }, 
-        (payload) => {
-          console.log("Real-time update for available tasks:", payload);
-          queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
-        }
-      )
-      .subscribe();
-
-    // Subscribe to changes for assigned tasks
-    const assignedChannel = supabase
-      .channel('assigned-tasks-changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'donations',
-          filter: `volunteer_id=eq.${currentUser.id}` 
-        }, 
-        (payload) => {
-          console.log("Real-time update for assigned tasks:", payload);
-          queryClient.invalidateQueries({ queryKey: ["assigned-tasks", currentUser.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(availableChannel);
-      supabase.removeChannel(assignedChannel);
-    };
-  }, [currentUser?.id, queryClient]);
+  
+  const { 
+    availableTasks, 
+    isLoadingAvailable, 
+    assignedTasks, 
+    isLoadingAssigned 
+  } = useVolunteerTasks(currentUser?.id);
 
   const stats = {
     total: assignedTasks?.length || 0,
@@ -215,7 +94,12 @@ export default function VolunteerDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {availableTasks?.length > 0 ? (
+            {isLoadingAvailable ? (
+              <div className="text-center py-4">
+                <Clock size={24} className="animate-pulse mx-auto mb-2" />
+                <p>Loading available tasks...</p>
+              </div>
+            ) : availableTasks?.length > 0 ? (
               <div className="space-y-4">
                 {getRecentAvailableTasks().map((task) => (
                   <TaskCard 
@@ -260,7 +144,12 @@ export default function VolunteerDashboard() {
                 <TabsTrigger value="completed">Completed</TabsTrigger>
               </TabsList>
               <TabsContent value="all">
-                {assignedTasks?.length > 0 ? (
+                {isLoadingAssigned ? (
+                  <div className="text-center py-4">
+                    <Clock size={24} className="animate-pulse mx-auto mb-2" />
+                    <p>Loading your tasks...</p>
+                  </div>
+                ) : assignedTasks?.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {assignedTasks.map((task) => (
                       <TaskCard 

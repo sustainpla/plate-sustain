@@ -1,21 +1,18 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import TaskCard from "@/components/volunteers/TaskCard";
-import { VolunteerTask } from "@/lib/types";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { useVolunteerTasks } from "@/hooks/useVolunteerTasks";
 
 export default function AvailableTasks() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   
   useEffect(() => {
     if (!currentUser || currentUser.role !== "volunteer") {
@@ -23,94 +20,19 @@ export default function AvailableTasks() {
     }
   }, [currentUser, navigate]);
 
-  const { data: tasks, isLoading, refetch } = useQuery({
-    queryKey: ["available-tasks"],
-    queryFn: async () => {
-      // Get all reserved donations that don't have a volunteer assigned
-      const { data, error } = await supabase
-        .from("donations")
-        .select(`
-          id,
-          title,
-          pickup_address,
-          pickup_time,
-          status,
-          profiles!donations_donor_id_fkey(name, address),
-          profiles!donations_reserved_by_fkey(name, address)
-        `)
-        .eq("status", "reserved")
-        .is("volunteer_id", null);
-
-      if (error) {
-        console.error("Error fetching available tasks:", error);
-        toast({
-          title: "Error fetching tasks",
-          description: error.message,
-          variant: "destructive"
-        });
-        throw error;
-      }
-      
-      console.log("Available tasks data:", data);
-      
-      // Map the database response to match our VolunteerTask type
-      return data.map(item => ({
-        id: item.id,
-        donationId: item.id,
-        donationTitle: item.title,
-        pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles.address || "Contact NGO for address",
-        pickupTime: item.pickup_time || new Date().toISOString(),
-        status: "available" as const,
-        volunteerId: undefined,
-        volunteerName: undefined
-      })) as VolunteerTask[];
-    },
-    enabled: !!currentUser?.id,
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
+  const { 
+    availableTasks: tasks, 
+    isLoadingAvailable: isLoading, 
+    refetchAvailable: refetch 
+  } = useVolunteerTasks(currentUser?.id);
 
   const handleRefresh = () => {
     refetch();
-    queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
     toast({
       title: "Refreshing tasks",
       description: "Getting the latest available tasks...",
     });
   };
-
-  // For demo purposes, filter tasks - in a real app we'd filter by geolocation
-  const filteredTasks = tasks || [];
-
-  // Set up real-time subscription for task updates
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    
-    // Create a realtime subscription to donation changes
-    const channel = supabase
-      .channel('volunteer-task-updates')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'donations',
-          filter: 'status=eq.reserved' 
-        }, 
-        (payload) => {
-          console.log("Real-time update for volunteer tasks:", payload);
-          // When any donation changes, refresh the available tasks list
-          queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
-        }
-      )
-      .subscribe();
-
-    console.log("Subscribed to volunteer task updates");
-
-    return () => {
-      console.log("Unsubscribing from volunteer task updates");
-      supabase.removeChannel(channel);
-    };
-  }, [currentUser?.id, queryClient]);
 
   return (
     <Layout>
@@ -144,9 +66,9 @@ export default function AvailableTasks() {
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                 <p>Loading available tasks...</p>
               </div>
-            ) : filteredTasks.length ? (
+            ) : tasks.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredTasks.map((task) => (
+                {tasks.map((task) => (
                   <TaskCard 
                     key={task.id} 
                     task={task} 
