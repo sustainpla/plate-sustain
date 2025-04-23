@@ -21,12 +21,20 @@ export default function ReservationButton({ donation, currentUser }: Reservation
   const queryClient = useQueryClient();
 
   const handleReserveDonation = async () => {
-    if (!currentUser || !donation) return;
+    if (!currentUser || !donation) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to reserve a donation",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsReserving(true);
     
     try {
       console.log("Starting reservation process for donation:", donation.id);
+      console.log("Current user attempting reservation:", currentUser.id);
       
       // First check if the donation is still available
       const { data: checkData, error: checkError } = await supabase
@@ -35,13 +43,16 @@ export default function ReservationButton({ donation, currentUser }: Reservation
         .eq("id", donation.id)
         .single();
       
+      console.log("Check donation status response:", checkData, checkError);
+      
       if (checkError) {
         console.error("Error checking donation status:", checkError);
-        throw new Error("Could not check donation availability");
+        throw new Error(`Could not check donation availability: ${checkError.message}`);
       }
       
       // If already reserved, show an error
       if (checkData.status !== "listed" || checkData.reserved_by) {
+        console.log("Donation already reserved:", checkData);
         toast({
           title: "Already reserved",
           description: "This donation has already been reserved by someone else.",
@@ -52,27 +63,35 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       }
       
       console.log("Donation is available. Proceeding with reservation");
-      console.log("User ID:", currentUser.id);
       
       // If still available, reserve it
-      const { data, error } = await supabase
+      const { error: updateError } = await supabase
         .from("donations")
         .update({
           status: "reserved",
-          reserved_by: currentUser.id,
+          reserved_by: currentUser.id
         })
-        .eq("id", donation.id)
-        .select();
+        .eq("id", donation.id);
       
-      if (error) {
-        console.error("Reservation update error:", error);
-        throw new Error("Failed to update reservation status");
+      if (updateError) {
+        console.error("Reservation update error:", updateError);
+        throw new Error(`Failed to update reservation status: ${updateError.message}`);
       }
       
-      console.log("Reservation update response:", data);
+      console.log("Reservation successful!");
       
-      if (!data || data.length === 0) {
-        throw new Error("No data returned from reservation update");
+      // Double-check that the reservation was successful
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("donations")
+        .select("status, reserved_by")
+        .eq("id", donation.id)
+        .single();
+        
+      console.log("Verification check response:", verifyData, verifyError);
+        
+      if (verifyError || !verifyData || verifyData.reserved_by !== currentUser.id) {
+        console.error("Verification failed:", verifyError || "Reserved by doesn't match current user");
+        throw new Error("Reservation verification failed");
       }
       
       // Set success state to show confirmation before redirect
@@ -92,8 +111,8 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       // Wait a bit to show success state before navigating
       setTimeout(() => {
         navigate("/ngo/my-reservations");
-      }, 1500);
-    } catch (error) {
+      }, 2000); // Longer delay to ensure data consistency
+    } catch (error: any) {
       console.error("Reservation error:", error);
       toast({
         title: "Reservation failed",
@@ -104,6 +123,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
     }
   };
 
+  // Only show the button if the donation is available and not already reserved
   if (donation.status !== "listed") {
     return null;
   }

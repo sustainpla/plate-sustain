@@ -2,6 +2,9 @@
 import { Loader2 } from "lucide-react";
 import { Donation } from "@/lib/types";
 import NGOReservationTabs from "@/components/ngo/NGOReservationTabs";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ReservationsDisplayProps {
   reservations: Donation[] | undefined;
@@ -9,6 +12,17 @@ interface ReservationsDisplayProps {
 }
 
 export default function ReservationsDisplay({ reservations, isLoading }: ReservationsDisplayProps) {
+  const { currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Force a refetch of reservations on component mount
+  useEffect(() => {
+    if (currentUser?.id) {
+      console.log("ReservationsDisplay: Refreshing reservation data for user:", currentUser.id);
+      queryClient.invalidateQueries({ queryKey: ["my-reservations", currentUser.id] });
+    }
+  }, [currentUser?.id, queryClient]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -28,5 +42,6 @@ export default function ReservationsDisplay({ reservations, isLoading }: Reserva
     );
   }
 
+  console.log("ReservationsDisplay: Rendering reservations:", reservations.length);
   return <NGOReservationTabs reservations={reservations} />;
 }

@@ -17,15 +17,16 @@ export function useMyReservations(userId: string | undefined) {
           *,
           profiles!donations_donor_id_fkey(name)
         `)
-        .eq("reserved_by", userId)
-        .order("created_at", { ascending: false });
+        .eq("reserved_by", userId);
 
       if (error) {
         console.error("Error fetching reservations:", error);
         throw error;
       }
       
-      console.log(`Found ${data.length} reservations for user ${userId}`);
+      console.log(`Found ${data?.length || 0} reservations for user ${userId}:`, data);
+      
+      if (!data) return [];
       
       // Map the database response to match our Donation type
       return data.map(item => ({
@@ -48,7 +49,8 @@ export function useMyReservations(userId: string | undefined) {
       }));
     },
     enabled: !!userId,
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-    staleTime: 3000 // Consider data stale after 3 seconds
+    refetchInterval: 3000, // Refetch more frequently
+    staleTime: 1000, // Consider data stale after 1 second for quicker refreshes
+    retry: 2 // Retry failed requests
   });
 }
