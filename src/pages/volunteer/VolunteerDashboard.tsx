@@ -1,56 +1,123 @@
-
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { VolunteerTask } from "@/lib/types";
-import { volunteerTasks as mockTasks } from "@/lib/mock-data";
 import TaskCard from "@/components/volunteers/TaskCard";
 import { Search, ChevronRight, Calendar, Clock, CheckCircle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 
 export default function VolunteerDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [assignedTasks, setAssignedTasks] = useState<VolunteerTask[]>([]);
-  const [availableTasks, setAvailableTasks] = useState<VolunteerTask[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    upcoming: 0,
-    completed: 0,
+  const queryClient = useQueryClient();
+
+  // Fetch available tasks (reserved donations without volunteer)
+  const { data: availableTasks, isLoading: loadingAvailable } = useQuery({
+    queryKey: ["available-tasks"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("donations")
+        .select(`
+          id,
+          title,
+          pickup_address,
+          pickup_time,
+          status,
+          profiles!donations_donor_id_fkey(name, address),
+          profiles!donations_reserved_by_fkey(name, address)
+        `)
+        .eq("status", "reserved")
+        .is("volunteer_id", null);
+
+      if (error) throw error;
+      
+      return data?.map(item => ({
+        id: item.id,
+        donationId: item.id,
+        donationTitle: item.title,
+        pickupAddress: item.pickup_address,
+        deliveryAddress: item.profiles?.address || "Contact NGO for address",
+        pickupTime: item.pickup_time || new Date().toISOString(),
+        status: "available" as const,
+        volunteerId: undefined,
+        volunteerName: undefined
+      }));
+    },
+    enabled: !!currentUser?.id,
   });
 
+  // Fetch assigned tasks
+  const { data: assignedTasks, isLoading: loadingAssigned } = useQuery({
+    queryKey: ["assigned-tasks", currentUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("donations")
+        .select(`
+          id,
+          title,
+          pickup_address,
+          pickup_time,
+          status,
+          profiles!donations_donor_id_fkey(name, address),
+          profiles!donations_reserved_by_fkey(name, address)
+        `)
+        .eq("volunteer_id", currentUser?.id);
+
+      if (error) throw error;
+      
+      return data?.map(item => ({
+        id: item.id,
+        donationId: item.id,
+        donationTitle: item.title,
+        pickupAddress: item.pickup_address,
+        deliveryAddress: item.profiles?.address || "Contact NGO for address",
+        pickupTime: item.pickup_time || new Date().toISOString(),
+        status: item.status === "pickedUp" ? "assigned" as const : item.status as "assigned" | "completed",
+        volunteerId: currentUser?.id,
+        volunteerName: currentUser?.name
+      }));
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // Set up real-time subscription
   useEffect(() => {
-    if (!currentUser || currentUser.role !== "volunteer") {
-      navigate("/login");
-      return;
-    }
+    if (!currentUser?.id) return;
 
-    // Filter tasks for the current volunteer
-    const volTasks = mockTasks.filter(
-      (task) => task.volunteerId === currentUser.id
-    );
-    
-    // Filter available tasks
-    const available = mockTasks.filter(
-      (task) => task.status === "available"
-    );
-    
-    setAssignedTasks(volTasks);
-    setAvailableTasks(available);
+    const channel = supabase
+      .channel('volunteer-dashboard-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+        }, 
+        () => {
+          // Refetch both queries when changes occur
+          queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["assigned-tasks", currentUser.id] });
+        }
+      )
+      .subscribe();
 
-    // Calculate stats
-    setStats({
-      total: volTasks.length,
-      upcoming: volTasks.filter((t) => t.status === "assigned").length,
-      completed: volTasks.filter((t) => t.status === "completed").length,
-    });
-  }, [currentUser, navigate]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, queryClient]);
+
+  const stats = {
+    total: assignedTasks?.length || 0,
+    upcoming: assignedTasks?.filter(t => t.status === "assigned").length || 0,
+    completed: assignedTasks?.filter(t => t.status === "completed").length || 0,
+  };
 
   const getRecentAvailableTasks = () => {
-    return availableTasks.slice(0, 3);
+    return availableTasks?.slice(0, 3) || [];
   };
 
   return (
@@ -116,7 +183,7 @@ export default function VolunteerDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {availableTasks.length > 0 ? (
+            {availableTasks?.length > 0 ? (
               <div className="space-y-4">
                 {getRecentAvailableTasks().map((task) => (
                   <TaskCard 
@@ -126,7 +193,7 @@ export default function VolunteerDashboard() {
                     actionLabel="Sign Up"
                   />
                 ))}
-                {availableTasks.length > 3 && (
+                {availableTasks?.length > 3 && (
                   <Button
                     variant="outline"
                     className="w-full mt-4"
@@ -161,7 +228,7 @@ export default function VolunteerDashboard() {
                 <TabsTrigger value="completed">Completed</TabsTrigger>
               </TabsList>
               <TabsContent value="all">
-                {assignedTasks.length > 0 ? (
+                {assignedTasks?.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {assignedTasks.map((task) => (
                       <TaskCard 
@@ -179,7 +246,7 @@ export default function VolunteerDashboard() {
                 )}
               </TabsContent>
               <TabsContent value="assigned">
-                {assignedTasks.filter(t => t.status === "assigned").length > 0 ? (
+                {assignedTasks?.filter(t => t.status === "assigned").length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {assignedTasks
                       .filter(t => t.status === "assigned")
@@ -199,7 +266,7 @@ export default function VolunteerDashboard() {
                 )}
               </TabsContent>
               <TabsContent value="completed">
-                {assignedTasks.filter(t => t.status === "completed").length > 0 ? (
+                {assignedTasks?.filter(t => t.status === "completed").length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {assignedTasks
                       .filter(t => t.status === "completed")

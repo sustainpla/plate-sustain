@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +31,23 @@ export default function TaskCard({
   const formatPickupTime = (dateTimeString: string) => {
     const date = new Date(dateTimeString);
     return date.toLocaleString();
+  };
+
+  const getActionLabel = () => {
+    if (task.status === "available") return "Sign Up";
+    if (task.status === "assigned") return "Mark as Picked Up";
+    if (task.status === "pickedUp") return "Complete Delivery";
+    return "View Details";
+  };
+
+  const getActionButtonStyle = () => {
+    if (task.status === "available") {
+      return "bg-sustainPlate-green hover:bg-sustainPlate-green-dark";
+    }
+    if (task.status === "completed") {
+      return "bg-gray-400 cursor-not-allowed";
+    }
+    return "";
   };
 
   return (
@@ -80,12 +96,10 @@ export default function TaskCard({
           <Button
             onClick={() => onAction(task)}
             variant="default"
-            className={task.status === "available" 
-              ? "bg-sustainPlate-green hover:bg-sustainPlate-green-dark" 
-              : ""}
+            className={getActionButtonStyle()}
             disabled={task.status === "completed"}
           >
-            {actionLabel || (task.status === "available" ? "Sign Up" : "View Details")}
+            {actionLabel || getActionLabel()}
           </Button>
         </CardFooter>
       )}
