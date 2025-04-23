@@ -36,9 +36,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       console.log("Starting reservation process for donation:", donation.id);
       console.log("Current user attempting reservation:", currentUser.id);
       
-      // First check if the donation is still available with a small delay to ensure no race condition
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      // First check if the donation is still available
       const { data: checkData, error: checkError } = await supabase
         .from("donations")
         .select("status, reserved_by")
@@ -66,61 +64,33 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       
       console.log("Donation is available. Proceeding with reservation");
       
-      // Use explicit transaction with retries
-      let updateSuccess = false;
-      let retries = 3;
+      // Add a small delay to prevent race conditions
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      while (!updateSuccess && retries > 0) {
-        const { error: updateError, data: updateData } = await supabase
-          .from("donations")
-          .update({
-            status: "reserved",
-            reserved_by: currentUser.id
-          })
-          .eq("id", donation.id)
-          .eq("status", "listed")  // Only update if status is still "listed"
-          .is("reserved_by", null) // Only update if reserved_by is still null
-          .select();
-        
-        if (updateError) {
-          console.error("Reservation update error:", updateError);
-          retries--;
-          if (retries > 0) {
-            console.log(`Retrying reservation... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            throw new Error(`Failed to update reservation status after multiple attempts: ${updateError.message}`);
-          }
-        } else {
-          updateSuccess = true;
-          console.log("Update successful:", updateData);
-        }
-      }
-      
-      if (!updateSuccess) {
-        throw new Error("Failed to reserve donation after multiple attempts");
-      }
-      
-      console.log("Reservation successful!");
-      
-      // Double-check that the reservation was successful
-      const { data: verifyData, error: verifyError } = await supabase
+      // Use a single update operation with proper conditions
+      const { data: updateData, error: updateError } = await supabase
         .from("donations")
-        .select("status, reserved_by")
+        .update({
+          status: "reserved",
+          reserved_by: currentUser.id
+        })
         .eq("id", donation.id)
-        .single();
-        
-      console.log("Verification check response:", verifyData, verifyError);
-        
-      if (verifyError) {
-        console.error("Verification error:", verifyError);
-        throw new Error(`Verification failed: ${verifyError.message}`);
+        .eq("status", "listed")  // Only update if status is still "listed"
+        .is("reserved_by", null) // Only update if reserved_by is still null
+        .select();
+      
+      if (updateError) {
+        console.error("Reservation update error:", updateError);
+        throw new Error(`Failed to update reservation status: ${updateError.message}`);
       }
-        
-      if (!verifyData || verifyData.reserved_by !== currentUser.id) {
-        console.error("Verification failed: Reserved by doesn't match current user");
-        throw new Error("Reservation verification failed");
+      
+      if (!updateData || updateData.length === 0) {
+        console.error("No rows were updated during reservation");
+        throw new Error("Failed to reserve donation - no rows updated");
       }
+      
+      // Verify the reservation was successful directly from the response
+      console.log("Reservation update successful", updateData);
       
       // Set success state to show confirmation before redirect
       setReservationSuccess(true);
@@ -139,12 +109,12 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       // Wait a bit to show success state before navigating
       setTimeout(() => {
         navigate("/ngo/my-reservations");
-      }, 3000); // Longer delay to ensure data consistency
+      }, 2000);
     } catch (error: any) {
       console.error("Reservation error:", error);
       toast({
         title: "Reservation failed",
-        description: "There was an error reserving this donation. Please try again.",
+        description: error.message || "There was an error reserving this donation. Please try again.",
         variant: "destructive",
       });
       setIsReserving(false);
