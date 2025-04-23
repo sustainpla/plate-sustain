@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,12 +20,14 @@ export default function TaskCard({
   const statusMap = {
     available: "Available",
     assigned: "Assigned",
+    pickedUp: "Picked Up",
     completed: "Completed",
   };
 
   const statusColorMap = {
     available: "bg-blue-100 text-blue-800",
     assigned: "bg-orange-100 text-orange-800",
+    pickedUp: "bg-yellow-100 text-yellow-800",
     completed: "bg-green-100 text-green-800",
   };
 

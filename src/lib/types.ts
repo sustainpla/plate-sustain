@@ -41,7 +41,7 @@ export interface VolunteerTask {
   pickupAddress: string;
   deliveryAddress: string;
   pickupTime: string;
-  status: "available" | "assigned" | "completed";
+  status: "available" | "assigned" | "pickedUp" | "completed";
   volunteerId?: string;
   volunteerName?: string;
 }
