@@ -54,17 +54,17 @@ export function useMyReservations(userId: string | undefined) {
         console.error("Exception in useMyReservations:", error);
         toast({
           title: "Error fetching reservations",
-          description: "Could not load your reservations. Please try refreshing.",
+          description: "Could not load your reservations. Please refresh the page.",
           variant: "destructive",
         });
         return [];
       }
     },
     enabled: !!userId,
-    refetchInterval: 2000, // Refetch more frequently
-    staleTime: 1000, // Consider data stale after 1 second for quicker refreshes
-    refetchOnMount: true, // Always refetch when component mounts
+    refetchInterval: 3000, // More frequent refetches for better real-time updates
+    staleTime: 1000, // Consider data stale quickly
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
-    retry: 3, // Retry failed requests more times
+    retry: 3
   });
 }

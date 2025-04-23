@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ReservationsDisplayProps {
   reservations: Donation[] | undefined;
@@ -24,6 +25,34 @@ export default function ReservationsDisplay({ reservations, isLoading }: Reserva
       console.log("ReservationsDisplay: Refreshing reservation data for user:", currentUser.id);
       queryClient.invalidateQueries({ queryKey: ["my-reservations", currentUser.id] });
     }
+  }, [currentUser?.id, queryClient]);
+
+  // Set up real-time subscription for reservation updates
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    
+    const channel = supabase
+      .channel('reservation-updates')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+          filter: `reserved_by=eq.${currentUser.id}` 
+        }, 
+        (payload) => {
+          console.log("Real-time update for reservation:", payload);
+          queryClient.invalidateQueries({ queryKey: ["my-reservations", currentUser.id] });
+        }
+      )
+      .subscribe();
+
+    console.log("Subscribed to reservation updates for user:", currentUser.id);
+
+    return () => {
+      console.log("Unsubscribing from reservation updates");
+      supabase.removeChannel(channel);
+    };
   }, [currentUser?.id, queryClient]);
 
   const handleManualRefresh = () => {

@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -23,6 +23,7 @@ export default function AvailableTasks() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [filterDistance, setFilterDistance] = useState<string>("all");
+  const queryClient = useQueryClient();
   
   useEffect(() => {
     if (!currentUser || currentUser.role !== "volunteer") {
@@ -41,13 +42,19 @@ export default function AvailableTasks() {
           title,
           pickup_address,
           pickup_time,
+          status,
           profiles!donations_donor_id_fkey(name, address),
           profiles!donations_reserved_by_fkey(name, address)
         `)
         .eq("status", "reserved")
         .is("volunteer_id", null);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching available tasks:", error);
+        throw error;
+      }
+      
+      console.log("Available tasks data:", data);
       
       // Map the database response to match our VolunteerTask type
       return data.map(item => ({
@@ -55,7 +62,7 @@ export default function AvailableTasks() {
         donationId: item.id,
         donationTitle: item.title,
         pickupAddress: item.pickup_address,
-        deliveryAddress: item.profiles?.address || "Contact NGO for address",
+        deliveryAddress: item.profiles ? item.profiles.address || "Contact NGO for address" : "Contact NGO for address",
         pickupTime: item.pickup_time || new Date().toISOString(),
         status: "available" as const, // Use const assertion to make TypeScript happy
         volunteerId: undefined,
@@ -68,6 +75,7 @@ export default function AvailableTasks() {
 
   const handleRefresh = () => {
     refetch();
+    queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
     toast({
       title: "Refreshing tasks",
       description: "Getting the latest available tasks...",
@@ -76,6 +84,34 @@ export default function AvailableTasks() {
 
   // For demo purposes, filter tasks - in a real app we'd filter by geolocation
   const filteredTasks = tasks || [];
+
+  // Set up real-time subscription for task updates
+  useEffect(() => {
+    // Create a realtime subscription to donation changes
+    const channel = supabase
+      .channel('volunteer-task-updates')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+          filter: 'volunteer_id=is.null' 
+        }, 
+        (payload) => {
+          console.log("Real-time update for volunteer tasks:", payload);
+          // When any donation changes, refresh the available tasks list
+          queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
+        }
+      )
+      .subscribe();
+
+    console.log("Subscribed to volunteer task updates");
+
+    return () => {
+      console.log("Unsubscribing from volunteer task updates");
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return (
     <Layout>
@@ -114,7 +150,7 @@ export default function AvailableTasks() {
                 {filteredTasks.map((task) => (
                   <TaskCard 
                     key={task.id} 
-                    task={task}
+                    task={task} 
                     onAction={() => navigate(`/volunteer/task/${task.id}`)}
                     actionLabel="Sign Up"
                   />

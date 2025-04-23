@@ -64,6 +64,35 @@ export default function TaskDetails() {
     refetchInterval: 3000, // Refetch every 3 seconds
   });
 
+  // Set up real-time subscription for task updates
+  useEffect(() => {
+    if (!id) return;
+    
+    // Subscribe to changes for this specific task
+    const channel = supabase
+      .channel(`task-${id}-updates`)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'donations',
+          filter: `id=eq.${id}`
+        }, 
+        (payload) => {
+          console.log("Real-time update for task:", payload);
+          refetch();
+        }
+      )
+      .subscribe();
+
+    console.log("Subscribed to task updates for task:", id);
+
+    return () => {
+      console.log("Unsubscribing from task updates");
+      supabase.removeChannel(channel);
+    };
+  }, [id, refetch]);
+
   const handleAssignTask = async () => {
     if (!currentUser || !task) return;
     
@@ -72,11 +101,14 @@ export default function TaskDetails() {
       // First check if task is still available
       const { data: checkData, error: checkError } = await supabase
         .from("donations")
-        .select("volunteer_id")
+        .select("volunteer_id, status")
         .eq("id", task.id)
         .single();
         
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error("Error checking task availability:", checkError);
+        throw checkError;
+      }
       
       if (checkData.volunteer_id) {
         toast({
@@ -89,6 +121,9 @@ export default function TaskDetails() {
         return;
       }
       
+      // Add a small delay to prevent race conditions
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // If still available, assign it
       const { error } = await supabase
         .from("donations")
@@ -98,7 +133,10 @@ export default function TaskDetails() {
         .eq("id", task.id)
         .is("volunteer_id", null); // Only allow assignment if no volunteer assigned
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error assigning task:", error);
+        throw error;
+      }
       
       // Verify assignment
       const { data: verifyData, error: verifyError } = await supabase
@@ -107,9 +145,13 @@ export default function TaskDetails() {
         .eq("id", task.id)
         .single();
         
-      if (verifyError) throw verifyError;
+      if (verifyError) {
+        console.error("Error verifying assignment:", verifyError);
+        throw verifyError;
+      }
       
       if (verifyData.volunteer_id !== currentUser.id) {
+        console.error("Assignment verification failed:", verifyData);
         throw new Error("Assignment verification failed");
       }
       
@@ -123,13 +165,13 @@ export default function TaskDetails() {
       queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
       
       refetch();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Task assignment error:", error);
       toast({
         title: "Assignment failed",
         description: "There was an error assigning this task. It may already be assigned.",
         variant: "destructive",
       });
-      console.error("Task assignment error:", error);
     } finally {
       setIsAssigning(false);
     }
@@ -140,6 +182,8 @@ export default function TaskDetails() {
     
     setIsUpdating(true);
     try {
+      console.log(`Updating task status to ${newStatus} for task:`, task.id);
+      
       const { error } = await supabase
         .from("donations")
         .update({
@@ -148,7 +192,27 @@ export default function TaskDetails() {
         .eq("id", task.id)
         .eq("volunteer_id", currentUser.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Status update error:", error);
+        throw error;
+      }
+      
+      // Verify the status update
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("donations")
+        .select("status")
+        .eq("id", task.id)
+        .single();
+        
+      if (verifyError) {
+        console.error("Status verification error:", verifyError);
+        throw verifyError;
+      }
+      
+      if (verifyData.status !== newStatus) {
+        console.error("Status verification failed:", verifyData);
+        throw new Error("Status update verification failed");
+      }
       
       toast({
         title: "Status updated",
@@ -162,13 +226,13 @@ export default function TaskDetails() {
       queryClient.invalidateQueries({ queryKey: ["available-tasks"] });
       
       refetch();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Status update error:", error);
       toast({
         title: "Update failed",
         description: "There was an error updating the status.",
         variant: "destructive",
       });
-      console.error("Status update error:", error);
     } finally {
       setIsUpdating(false);
     }

@@ -36,7 +36,9 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       console.log("Starting reservation process for donation:", donation.id);
       console.log("Current user attempting reservation:", currentUser.id);
       
-      // First check if the donation is still available
+      // First check if the donation is still available with a small delay to ensure no race condition
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const { data: checkData, error: checkError } = await supabase
         .from("donations")
         .select("status, reserved_by")
@@ -64,23 +66,39 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       
       console.log("Donation is available. Proceeding with reservation");
       
-      // Add a small timeout to ensure database transactions are consistent
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Use explicit transaction with retries
+      let updateSuccess = false;
+      let retries = 3;
       
-      // If still available, reserve it with explicit transaction
-      const { error: updateError } = await supabase
-        .from("donations")
-        .update({
-          status: "reserved",
-          reserved_by: currentUser.id
-        })
-        .eq("id", donation.id)
-        .eq("status", "listed")  // Only update if status is still "listed"
-        .is("reserved_by", null); // Only update if reserved_by is still null
+      while (!updateSuccess && retries > 0) {
+        const { error: updateError, data: updateData } = await supabase
+          .from("donations")
+          .update({
+            status: "reserved",
+            reserved_by: currentUser.id
+          })
+          .eq("id", donation.id)
+          .eq("status", "listed")  // Only update if status is still "listed"
+          .is("reserved_by", null) // Only update if reserved_by is still null
+          .select();
+        
+        if (updateError) {
+          console.error("Reservation update error:", updateError);
+          retries--;
+          if (retries > 0) {
+            console.log(`Retrying reservation... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            throw new Error(`Failed to update reservation status after multiple attempts: ${updateError.message}`);
+          }
+        } else {
+          updateSuccess = true;
+          console.log("Update successful:", updateData);
+        }
+      }
       
-      if (updateError) {
-        console.error("Reservation update error:", updateError);
-        throw new Error(`Failed to update reservation status: ${updateError.message}`);
+      if (!updateSuccess) {
+        throw new Error("Failed to reserve donation after multiple attempts");
       }
       
       console.log("Reservation successful!");
@@ -121,7 +139,7 @@ export default function ReservationButton({ donation, currentUser }: Reservation
       // Wait a bit to show success state before navigating
       setTimeout(() => {
         navigate("/ngo/my-reservations");
-      }, 2000); // Longer delay to ensure data consistency
+      }, 3000); // Longer delay to ensure data consistency
     } catch (error: any) {
       console.error("Reservation error:", error);
       toast({
