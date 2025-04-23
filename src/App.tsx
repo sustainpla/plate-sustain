@@ -33,6 +33,7 @@ import MyReservations from "./pages/ngo/MyReservations";
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
 import AvailableTasks from "./pages/volunteer/AvailableTasks";
 import TaskDetails from "./pages/volunteer/TaskDetails";
+import MySchedule from "./pages/volunteer/MySchedule";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
           <Route path="/volunteer/available-tasks" element={<AvailableTasks />} />
           <Route path="/volunteer/task/:id" element={<TaskDetails />} />
+          <Route path="/volunteer/my-schedule" element={<MySchedule />} />
           
           {/* Catch-all Route */}
           <Route path="*" element={<NotFound />} />

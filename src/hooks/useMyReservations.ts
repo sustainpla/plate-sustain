@@ -8,7 +8,7 @@ export function useMyReservations(userId: string | undefined) {
   return useQuery({
     queryKey: ["my-reservations", userId],
     queryFn: async () => {
-      if (!userId) throw new Error("User not authenticated");
+      if (!userId) return []; // Return empty array instead of throwing when userId is undefined
       
       console.log("Fetching reservations for user:", userId);
       
@@ -55,7 +55,7 @@ export function useMyReservations(userId: string | undefined) {
         volunteerId: item.volunteer_id || undefined,
       }));
     },
-    enabled: !!userId,
+    enabled: true, // Always enable the query, it will return empty array if userId is undefined
     refetchInterval: 2000, // More frequent refetches for better real-time updates
     staleTime: 500, // Consider data stale quickly
     refetchOnMount: true,
